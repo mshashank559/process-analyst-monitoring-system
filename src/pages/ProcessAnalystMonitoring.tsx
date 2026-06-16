@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, FileText, ShieldAlert, Award, ChevronDown, ChevronUp, Download } from 'lucide-react'
+import { Search, FileText, ShieldAlert, Award, ChevronDown, ChevronUp, Download, HelpCircle } from 'lucide-react'
 import { generateRecruiterPDF } from '../utils/reportGenerator'
 
 interface MonitoringEntry {
@@ -125,7 +125,15 @@ interface TeamLeadSummary {
 }
 
 export default function ProcessAnalystMonitoring() {
-  const [activeTab, setActiveTab] = useState<'entry' | 'executive' | 'weekly' | 'monthly' | 'timeline' | 'flags' | 'history'>('entry')
+  const [activeTab, setActiveTab] = useState<'entry' | 'executive' | 'weekly' | 'monthly' | 'timeline' | 'flags' | 'history' | 'master_drilldown'>('master_drilldown')
+
+  // Master Drill-Down State
+  const [drilldownData, setDrilldownData] = useState<any[]>([])
+  const [loadingDrilldown, setLoadingDrilldown] = useState(false)
+  const [expandedSRs, setExpandedSRs] = useState<Record<string, boolean>>({})
+  const [expandedRecruiters, setExpandedRecruiters] = useState<Record<string, boolean>>({})
+  const [targetedOnly, setTargetedOnly] = useState(false)
+  const [drilldownSearch, setDrilldownSearch] = useState('')
   
   // Daily Form State
   const [form, setForm] = useState({
@@ -287,6 +295,20 @@ export default function ProcessAnalystMonitoring() {
       .catch(err => console.error(err))
   }, [filters])
 
+  const fetchDrilldown = useCallback(() => {
+    setLoadingDrilldown(true)
+    fetch('/api/monitoring/master-drilldown')
+      .then(res => res.json())
+      .then(d => {
+        if (Array.isArray(d)) setDrilldownData(d)
+        setLoadingDrilldown(false)
+      })
+      .catch(err => {
+        console.error(err)
+        setLoadingDrilldown(false)
+      })
+  }, [])
+
   useEffect(() => {
     fetchLogs()
   }, [fetchLogs])
@@ -299,8 +321,10 @@ export default function ProcessAnalystMonitoring() {
     } else if (activeTab === 'weekly' || activeTab === 'monthly') {
       fetchSnapshots()
       fetchTrends()
+    } else if (activeTab === 'master_drilldown') {
+      fetchDrilldown()
     }
-  }, [activeTab, fetchExecStats, fetchFlags, fetchSnapshots, fetchTrends])
+  }, [activeTab, fetchExecStats, fetchFlags, fetchSnapshots, fetchTrends, fetchDrilldown])
 
   // Live Score Calculator Preview
   const getLiveScore = () => {
@@ -392,6 +416,8 @@ export default function ProcessAnalystMonitoring() {
           targetedConnectionReason: ''
         })
         fetchLogs()
+        fetchDrilldown()
+        fetchExecStats()
       })
       .catch(err => alert('Submission failed: ' + err.message))
   }
@@ -564,6 +590,52 @@ export default function ProcessAnalystMonitoring() {
     setExpandedLogs(prev => ({ ...prev, [id]: !prev[id] }))
   }
 
+  // Filtering logic for hierarchical drill-down
+  const filteredDrilldown = drilldownData.map(sr => {
+    const filteredRecs = sr.recruiters.map((rec: any) => {
+      const filteredCands = rec.candidates.filter((cand: any) => {
+        const matchesTarget = !targetedOnly || cand.isTargeted;
+        const matchesSearch = !drilldownSearch ||
+          sr.srName.toLowerCase().includes(drilldownSearch.toLowerCase()) ||
+          rec.recruiterName.toLowerCase().includes(drilldownSearch.toLowerCase()) ||
+          cand.candidateName.toLowerCase().includes(drilldownSearch.toLowerCase());
+        return matchesTarget && matchesSearch;
+      });
+
+      if (filteredCands.length === 0) return null;
+
+      return {
+        ...rec,
+        totalCandidates: filteredCands.length,
+        candidates: filteredCands
+      };
+    }).filter(Boolean) as any[];
+
+    if (filteredRecs.length === 0) return null;
+
+    const totalRecs = filteredRecs.length;
+    const totalCandidates = filteredRecs.reduce((s, r) => s + r.totalCandidates, 0);
+
+    const statusCounts = { Active: 0, Hold: 0, Backout: 0, Placed: 0 };
+    filteredRecs.forEach(r => {
+      r.candidates.forEach((c: any) => {
+        if (statusCounts[c.status as keyof typeof statusCounts] !== undefined) {
+          statusCounts[c.status as keyof typeof statusCounts]++;
+        } else {
+          statusCounts[c.status as keyof typeof statusCounts] = 1;
+        }
+      });
+    });
+
+    return {
+      ...sr,
+      totalRecruiters: totalRecs,
+      totalCandidates,
+      statusCounts,
+      recruiters: filteredRecs
+    };
+  }).filter(Boolean);
+
   return (
     <div>
       <div className="page-header">
@@ -573,6 +645,7 @@ export default function ProcessAnalystMonitoring() {
             <p>Perform daily recruiter audits, track KPIs, compliance metrics, and generate frozen snapshots.</p>
           </div>
           <div style={{ display: 'flex', gap: 6, background: 'var(--surface2)', padding: 4, borderRadius: 8, flexWrap: 'wrap' }}>
+            <button className={`btn btn-sm ${activeTab === 'master_drilldown' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setActiveTab('master_drilldown')}>Master Drill-Down View</button>
             <button className={`btn btn-sm ${activeTab === 'entry' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setActiveTab('entry')}>Daily Entry Form</button>
             <button className={`btn btn-sm ${activeTab === 'executive' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setActiveTab('executive')}>Executive Summary</button>
             <button className={`btn btn-sm ${activeTab === 'weekly' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setActiveTab('weekly')}>Weekly Report</button>
@@ -1386,6 +1459,261 @@ export default function ProcessAnalystMonitoring() {
                 </tbody>
               </table>
             </div>
+          </motion.div>
+        )}
+        {/* TAB 8: MASTER DRILL-DOWN VIEW */}
+        {activeTab === 'master_drilldown' && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            {/* Filter controls */}
+            <div className="glass-card" style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 280 }}>
+                <div style={{ position: 'relative', width: '100%', maxWidth: 360 }}>
+                  <Search size={18} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)' }} />
+                  <input
+                    type="text"
+                    placeholder="Search SR, Recruiter, or Candidate..."
+                    className="form-control"
+                    style={{ paddingLeft: 38 }}
+                    value={drilldownSearch}
+                    onChange={e => setDrilldownSearch(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-muted)' }}>Targeted Candidates Only</span>
+                  <div
+                    className={`toggle ${targetedOnly ? 'on' : ''}`}
+                    onClick={() => setTargetedOnly(!targetedOnly)}
+                  />
+                </div>
+                <button className="btn btn-sm btn-outline" onClick={fetchDrilldown}>Refresh Data</button>
+              </div>
+            </div>
+
+            {loadingDrilldown ? (
+              <div className="loading">
+                <div className="spinner"></div>
+              </div>
+            ) : filteredDrilldown.length === 0 ? (
+              <div className="empty glass-card">
+                <HelpCircle size={48} />
+                <p style={{ marginTop: 8 }}>No matching candidate hierarchy found.</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {filteredDrilldown.map((sr: any) => {
+                  const isSRExpanded = !!expandedSRs[sr.srName];
+                  return (
+                    <div key={sr.srName} className="glass-card fade-up" style={{ padding: 0, overflow: 'hidden', border: isSRExpanded ? '1px solid var(--border-blue)' : '1px solid var(--border)', transition: 'border-color 0.2s' }}>
+                      {/* SR Header Card */}
+                      <div
+                        onClick={() => setExpandedSRs(prev => ({ ...prev, [sr.srName]: !prev[sr.srName] }))}
+                        style={{ padding: '16px 20px', background: 'rgba(30, 34, 208, 0.03)', borderBottom: isSRExpanded ? '1px solid var(--border)' : 'none', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          {isSRExpanded ? <ChevronUp size={20} style={{ color: 'var(--primary-light)' }} /> : <ChevronDown size={20} style={{ color: 'var(--text-muted)' }} />}
+                          <div>
+                            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>
+                              Senior Recruiter: <span style={{ color: 'var(--primary-light)' }}>{sr.srName}</span>
+                            </h3>
+                          </div>
+                        </div>
+
+                        {/* SR KPIs */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+                          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                            Recruiters: <span style={{ fontWeight: 700, color: 'var(--text)' }}>{sr.totalRecruiters}</span>
+                          </div>
+                          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                            Candidates: <span style={{ fontWeight: 700, color: 'var(--text)' }}>{sr.totalCandidates}</span>
+                          </div>
+                          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                            WoW Compl.: <span className="badge badge-blue">{sr.weeklyPerformance}%</span>
+                          </div>
+                          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                            MoM Compl.: <span className="badge badge-blue">{sr.monthlyPerformance}%</span>
+                          </div>
+                          {/* Status counts breakdown */}
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <span className="badge badge-green" title="Active Candidates">{sr.statusCounts.Active || 0} A</span>
+                            <span className="badge badge-yellow" title="Hold Candidates">{sr.statusCounts.Hold || 0} H</span>
+                            <span className="badge badge-red" title="Backout Candidates">{sr.statusCounts.Backout || 0} B</span>
+                            <span className="badge badge-cyan" title="Placed Candidates">{sr.statusCounts.Placed || 0} P</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* SR Child Section (Recruiters) */}
+                      {isSRExpanded && (
+                        <div style={{ padding: '16px 20px', background: 'rgba(255, 255, 255, 0.01)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                          {sr.recruiters.map((rec: any) => {
+                            const isRecExpanded = !!expandedRecruiters[rec.recruiterName];
+                            const statusColor = rec.status === 'achieved' ? 'var(--green)' : rec.status === 'below_target' ? 'var(--yellow)' : 'var(--red)';
+                            
+                            return (
+                              <div key={rec.recruiterName} style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+                                {/* Recruiter Header bar */}
+                                <div
+                                  onClick={() => setExpandedRecruiters(prev => ({ ...prev, [rec.recruiterName]: !prev[rec.recruiterName] }))}
+                                  style={{ padding: '12px 16px', background: 'rgba(255, 255, 255, 0.02)', borderBottom: isRecExpanded ? '1px solid var(--border)' : 'none', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                    {isRecExpanded ? <ChevronUp size={16} style={{ color: statusColor }} /> : <ChevronDown size={16} style={{ color: 'var(--text-muted)' }} />}
+                                    <span style={{ fontWeight: 700, fontSize: 14 }}>Recruiter: {rec.recruiterName}</span>
+                                    <span style={{ fontSize: 10, textTransform: 'uppercase', padding: '2px 8px', borderRadius: 4, background: rec.status === 'achieved' ? 'rgba(34,197,94,0.1)' : rec.status === 'below_target' ? 'rgba(234,179,8,0.1)' : 'rgba(239,68,68,0.1)', color: statusColor, fontWeight: 700, border: `1px solid ${statusColor}40` }}>
+                                      {rec.status === 'achieved' ? 'Achieved' : rec.status === 'below_target' ? 'Below Target' : 'Missed Target'}
+                                    </span>
+                                  </div>
+
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Candidates: <b style={{ color: 'var(--text)' }}>{rec.totalCandidates}</b></span>
+                                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Weekly: <span className="badge badge-blue" style={{ fontSize: 10 }}>{rec.weeklyPerformance}%</span></span>
+                                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Monthly: <span className="badge badge-blue" style={{ fontSize: 10 }}>{rec.monthlyPerformance}%</span></span>
+                                  </div>
+                                </div>
+
+                                {/* Recruiter Child Section (Candidates) */}
+                                {isRecExpanded && (
+                                  <div style={{ padding: 16, background: 'var(--bg)', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 16 }}>
+                                    {rec.candidates.map((cand: any) => {
+                                      const complianceColor = cand.monthlyPerformance >= 80 ? 'var(--green)' : cand.monthlyPerformance >= 60 ? 'var(--yellow)' : 'var(--red)';
+                                      
+                                      return (
+                                        <div key={cand.candidateId} className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14, border: '1px solid var(--border)', position: 'relative' }}>
+                                          
+                                          {/* Candidate header */}
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                            <div>
+                                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                <h4 style={{ margin: 0, fontWeight: 800, fontSize: 15, color: 'var(--text)' }}>{cand.candidateName}</h4>
+                                                {cand.isTargeted && (
+                                                  <span className="badge" style={{ background: 'rgba(249,115,22,0.15)', color: 'var(--orange)', border: '1px solid rgba(249,115,22,0.3)', fontSize: 9 }}>
+                                                    Targeted
+                                                  </span>
+                                                )}
+                                              </div>
+                                              <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>ID: {cand.candidateId}</span>
+                                            </div>
+                                            <span className={`badge ${cand.status === 'Active' ? 'badge-green' : cand.status === 'Hold' ? 'badge-yellow' : cand.status === 'Backout' ? 'badge-red' : 'badge-cyan'}`}>
+                                              {cand.status}
+                                            </span>
+                                          </div>
+
+                                          {/* Application Stats funnel */}
+                                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, background: 'var(--surface)', padding: 10, borderRadius: 8, textAlign: 'center' }}>
+                                            <div>
+                                              <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Short Apps</div>
+                                              <div style={{ fontSize: 14, fontWeight: 700 }}>{cand.shortApps} <span style={{ fontSize: 9, color: 'var(--text-dim)' }}>/40</span></div>
+                                            </div>
+                                            <div>
+                                              <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Long Apps</div>
+                                              <div style={{ fontSize: 14, fontWeight: 700 }}>{cand.longApps} <span style={{ fontSize: 9, color: 'var(--text-dim)' }}>/60</span></div>
+                                            </div>
+                                            <div>
+                                              <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Total Apps</div>
+                                              <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--primary-light)' }}>{cand.totalApps}</div>
+                                            </div>
+                                          </div>
+
+                                          {/* Interview section */}
+                                          <div style={{ fontSize: 11, borderTop: '1px solid var(--border)', paddingTop: 10 }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                                              <span style={{ color: 'var(--text-muted)' }}>Interview Scheduled:</span>
+                                              <span style={{ fontWeight: 600 }}>{cand.interviewScheduled ? 'Yes' : 'No'}</span>
+                                            </div>
+                                            {cand.interviewStatus && (
+                                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                                                <span style={{ color: 'var(--text-muted)' }}>Interview Status:</span>
+                                                <span style={{ fontWeight: 600, color: 'var(--cyan)' }}>{cand.interviewStatus}</span>
+                                              </div>
+                                            )}
+                                            {cand.interviewOutcome && (
+                                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                                                <span style={{ color: 'var(--text-muted)' }}>Outcome:</span>
+                                                <span style={{ fontWeight: 600 }}>{cand.interviewOutcome}</span>
+                                              </div>
+                                            )}
+                                            {cand.interviewFeedback && (
+                                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                                                <span style={{ color: 'var(--text-muted)' }}>Feedback:</span>
+                                                <span style={{ fontWeight: 600 }}>{cand.interviewFeedback}</span>
+                                              </div>
+                                            )}
+                                            {cand.interviewComments && (
+                                              <div style={{ marginTop: 4, background: 'var(--surface2)', padding: '6px 8px', borderRadius: 4, fontStyle: 'italic', fontSize: 10, color: 'var(--text-muted)' }}>
+                                                &ldquo;{cand.interviewComments}&rdquo;
+                                              </div>
+                                            )}
+                                          </div>
+
+                                          {/* TL Verification validation */}
+                                          <div style={{ fontSize: 11, borderTop: '1px solid var(--border)', paddingTop: 10 }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                                              <span style={{ color: 'var(--text-muted)' }}>TL Verification:</span>
+                                              <span className={`badge ${cand.tlLegitimacy === 'Legit' ? 'badge-green' : cand.tlLegitimacy === 'Not Legit' ? 'badge-red' : 'badge-yellow'}`} style={{ fontSize: 10 }}>
+                                                {cand.tlLegitimacy}
+                                              </span>
+                                            </div>
+                                            {cand.tlVerificationComment && (
+                                              <div style={{ marginTop: 4, background: 'var(--surface2)', padding: '6px 8px', borderRadius: 4, fontSize: 10 }}>
+                                                <b>TL Comment:</b> {cand.tlVerificationComment}
+                                              </div>
+                                            )}
+                                          </div>
+
+                                          {/* Comments & Activity logs */}
+                                          <div style={{ fontSize: 11, borderTop: '1px solid var(--border)', paddingTop: 10 }}>
+                                            {cand.latestActivity && (
+                                              <div style={{ marginBottom: 4 }}>
+                                                <span style={{ color: 'var(--text-muted)' }}>Latest Activity:</span>
+                                                <div style={{ marginTop: 2, paddingLeft: 6, borderLeft: '2px solid var(--primary-light)', color: 'var(--text)' }}>
+                                                  {cand.latestActivity}
+                                                </div>
+                                              </div>
+                                            )}
+                                            {cand.remarks && (
+                                              <div>
+                                                <span style={{ color: 'var(--text-muted)' }}>Process Analyst Remarks:</span>
+                                                <div style={{ marginTop: 2, color: 'var(--text-muted)', fontSize: 10 }}>
+                                                  {cand.remarks}
+                                                </div>
+                                              </div>
+                                            )}
+                                            {cand.placementNotes && (
+                                              <div style={{ marginTop: 4 }}>
+                                                <span style={{ color: 'var(--text-muted)' }}>Placement Notes:</span>
+                                                <div style={{ marginTop: 2, color: 'var(--text-muted)', fontSize: 10 }}>
+                                                  {cand.placementNotes}
+                                                </div>
+                                              </div>
+                                            )}
+                                          </div>
+
+                                          {/* Compliance scores */}
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: 10, fontSize: 11 }}>
+                                            <span style={{ color: 'var(--text-muted)' }}>Compliance Scores:</span>
+                                            <div style={{ display: 'flex', gap: 8 }}>
+                                              <span title="Weekly compliance score" style={{ fontWeight: 600, color: 'var(--text)' }}>WoW: <span style={{ color: 'var(--primary-light)' }}>{cand.weeklyPerformance}%</span></span>
+                                              <span title="Monthly compliance score" style={{ fontWeight: 600, color: 'var(--text)' }}>MoM: <span style={{ color: complianceColor }}>{cand.monthlyPerformance}%</span></span>
+                                            </div>
+                                          </div>
+
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

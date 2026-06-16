@@ -256,9 +256,9 @@ app.get('/api/dashboard/stats', async (req, res) => {
   try {
     const [tasks, recruiters, candidates, reports, issues] = await Promise.all([
       Task.find(),
-      Recruiter.find(),
-      Candidate.find(),
-      Report.find(),
+      Recruiter.find({ name: { $nin: [/ravi kumar/i, /john doe/i] } }),
+      Candidate.find({ name: { $nin: [/john doe/i, /ravi kumar/i] } }),
+      Report.find({ recruiter: { $nin: [/ravi kumar/i, /john doe/i] } }),
       Issue.find(),
     ]);
     res.json({
@@ -278,7 +278,7 @@ app.get('/api/dashboard/stats', async (req, res) => {
 app.get('/api/recruiters', async (req, res) => {
   try {
     const { search, teamLead, status } = req.query;
-    let query = {};
+    let query = { name: { $nin: [/ravi kumar/i, /john doe/i] } };
     if (search) query.$or = [{ name: /search/i }, { candidate: /search/i }];
     if (teamLead) query.teamLead = teamLead;
     if (status) query.status = status;
@@ -297,7 +297,7 @@ app.patch('/api/recruiters/:id', async (req, res) => {
 
 // Candidates
 app.get('/api/candidates', async (req, res) => {
-  try { const data = await Candidate.find().sort({ createdAt: -1 }); res.json(data); }
+  try { const data = await Candidate.find({ name: { $nin: [/john doe/i, /ravi kumar/i] } }).sort({ createdAt: -1 }); res.json(data); }
   catch (err) { res.status(500).json({ error: err.message }); }
 });
 app.post('/api/candidates', async (req, res) => {
@@ -347,8 +347,8 @@ app.get('/api/reports', async (req, res) => {
 app.get('/api/historical', async (req, res) => {
   try {
     const [recruiters, candidates, tasks, issues] = await Promise.all([
-      Recruiter.find().sort({ createdAt: -1 }),
-      Candidate.find().sort({ createdAt: -1 }),
+      Recruiter.find({ name: { $nin: [/ravi kumar/i, /john doe/i] } }).sort({ createdAt: -1 }),
+      Candidate.find({ name: { $nin: [/john doe/i, /ravi kumar/i] } }).sort({ createdAt: -1 }),
       Task.find().sort({ createdAt: -1 }),
       Issue.find().sort({ createdAt: -1 }),
     ]);
@@ -379,7 +379,7 @@ app.post('/api/updates', async (req, res) => {
 // Analytics
 app.get('/api/analytics', async (req, res) => {
   try {
-    const recruiters = await Recruiter.find();
+    const recruiters = await Recruiter.find({ name: { $nin: [/ravi kumar/i, /john doe/i] } });
     const performance = recruiters.map(r => ({
       name: r.name.split(' ')[0],
       target: r.target,
@@ -582,9 +582,12 @@ function aggregateEntries(entries) {
 app.get('/api/monitoring', async (req, res) => {
   try {
     const { recruiter, candidate, teamLead, seniorRecruiter, startDate, endDate, status, interviewLegitimacy } = req.query;
-    const filter = {};
-    if (recruiter)  filter.recruiterName = { $regex: recruiter, $options: 'i' };
-    if (candidate)  filter.candidateName = { $regex: candidate, $options: 'i' };
+    const filter = {
+      recruiterName: { $nin: [/ravi kumar/i, /john doe/i] },
+      candidateName: { $nin: [/john doe/i, /ravi kumar/i] }
+    };
+    if (recruiter)  filter.recruiterName = { $regex: recruiter, $options: 'i', $nin: [/ravi kumar/i, /john doe/i] };
+    if (candidate)  filter.candidateName = { $regex: candidate, $options: 'i', $nin: [/john doe/i, /ravi kumar/i] };
     if (teamLead)   filter.teamLead      = { $regex: teamLead,  $options: 'i' };
     if (seniorRecruiter) filter.seniorRecruiter = { $regex: seniorRecruiter, $options: 'i' };
     if (status)     filter.candidateStatus = status;
@@ -672,7 +675,10 @@ app.delete('/api/monitoring/:id', async (req, res) => {
 // GET Executive Summary Dashboard KPIs
 app.get('/api/monitoring/executive-summary', async (req, res) => {
   try {
-    const entries = await ProcessMonitor.find();
+    const entries = await ProcessMonitor.find({
+      recruiterName: { $nin: [/ravi kumar/i, /john doe/i] },
+      candidateName: { $nin: [/john doe/i, /ravi kumar/i] }
+    });
     
     // Aggregated stats
     const totalRecruiters = new Set(entries.map(e => e.recruiterName)).size;
@@ -688,10 +694,18 @@ app.get('/api/monitoring/executive-summary', async (req, res) => {
     const legitCount = interviewEntries.filter(e => e.interviewLegitimacy === 'Legit').length;
     const legitimacyPct = interviewEntries.length ? Math.round((legitCount / interviewEntries.length) * 100) : 100;
     
-    const openFlags = await EscalationFlag.countDocuments({ resolved: false });
+    const openFlags = await EscalationFlag.countDocuments({
+      resolved: false,
+      recruiterName: { $nin: [/ravi kumar/i, /john doe/i] },
+      candidateName: { $nin: [/john doe/i, /ravi kumar/i] }
+    });
     
     // Profiles at risk: Candidates with open flags
-    const atRiskFlags = await EscalationFlag.find({ resolved: false }).sort({ createdAt: -1 });
+    const atRiskFlags = await EscalationFlag.find({
+      resolved: false,
+      recruiterName: { $nin: [/ravi kumar/i, /john doe/i] },
+      candidateName: { $nin: [/john doe/i, /ravi kumar/i] }
+    }).sort({ createdAt: -1 });
 
     res.json({
       totalRecruiters,
@@ -708,7 +722,11 @@ app.get('/api/monitoring/executive-summary', async (req, res) => {
 // GET Team Lead Legitimacy verification summary
 app.get('/api/monitoring/team-lead-summary', async (req, res) => {
   try {
-    const entries = await ProcessMonitor.find({ interviewCount: { $gt: 0 } });
+    const entries = await ProcessMonitor.find({
+      interviewCount: { $gt: 0 },
+      recruiterName: { $nin: [/ravi kumar/i, /john doe/i] },
+      candidateName: { $nin: [/john doe/i, /ravi kumar/i] }
+    });
     const tlMap = {};
     
     entries.forEach(e => {
@@ -731,11 +749,20 @@ app.get('/api/monitoring/candidate-timeline', async (req, res) => {
   try {
     const { candidateName } = req.query;
     if (!candidateName) return res.status(400).json({ error: "candidateName is required." });
+    if (/john doe/i.test(candidateName) || /ravi kumar/i.test(candidateName)) {
+      return res.json([]);
+    }
     
     // Find all entries and status changes
     const [entries, statusAudits] = await Promise.all([
-      ProcessMonitor.find({ candidateName: { $regex: candidateName, $options: 'i' } }).sort({ monitoringDate: 1 }),
-      StatusAudit.find({ candidateName: { $regex: candidateName, $options: 'i' } }).sort({ changedDate: 1 })
+      ProcessMonitor.find({
+        candidateName: { $regex: candidateName, $options: 'i' },
+        recruiterName: { $nin: [/ravi kumar/i, /john doe/i] }
+      }).sort({ monitoringDate: 1 }),
+      StatusAudit.find({
+        candidateName: { $regex: candidateName, $options: 'i' },
+        recruiterName: { $nin: [/ravi kumar/i, /john doe/i] }
+      }).sort({ changedDate: 1 })
     ]);
     
     // Compile timeline events
@@ -791,10 +818,13 @@ app.get('/api/monitoring/candidate-timeline', async (req, res) => {
 app.get('/api/monitoring/escalation-flags', async (req, res) => {
   try {
     const { resolved, recruiter, candidate } = req.query;
-    const filter = {};
+    const filter = {
+      recruiterName: { $nin: [/ravi kumar/i, /john doe/i] },
+      candidateName: { $nin: [/john doe/i, /ravi kumar/i] }
+    };
     if (resolved !== undefined) filter.resolved = resolved === 'true';
-    if (recruiter) filter.recruiterName = { $regex: recruiter, $options: 'i' };
-    if (candidate) filter.candidateName = { $regex: candidate, $options: 'i' };
+    if (recruiter) filter.recruiterName = { $regex: recruiter, $options: 'i', $nin: [/ravi kumar/i, /john doe/i] };
+    if (candidate) filter.candidateName = { $regex: candidate, $options: 'i', $nin: [/john doe/i, /ravi kumar/i] };
     
     const data = await EscalationFlag.find(filter).sort({ createdAt: -1 });
     res.json(data);
@@ -824,8 +854,16 @@ app.get('/api/monitoring/trend-analysis', async (req, res) => {
     const prevStart = new Date(now.getTime() - 2 * days * 24 * 3600 * 1000);
 
     const [currentEntries, prevEntries] = await Promise.all([
-      ProcessMonitor.find({ monitoringDate: { $gte: currentStart } }),
-      ProcessMonitor.find({ monitoringDate: { $gte: prevStart, $lt: currentStart } })
+      ProcessMonitor.find({
+        monitoringDate: { $gte: currentStart },
+        recruiterName: { $nin: [/ravi kumar/i, /john doe/i] },
+        candidateName: { $nin: [/john doe/i, /ravi kumar/i] }
+      }),
+      ProcessMonitor.find({
+        monitoringDate: { $gte: prevStart, $lt: currentStart },
+        recruiterName: { $nin: [/ravi kumar/i, /john doe/i] },
+        candidateName: { $nin: [/john doe/i, /ravi kumar/i] }
+      })
     ]);
 
     const recruiterScores = {};
@@ -859,8 +897,11 @@ app.get('/api/monitoring/trend-analysis', async (req, res) => {
 app.get('/api/status-audit', async (req, res) => {
   try {
     const { candidateName } = req.query;
-    const filter = {};
-    if (candidateName) filter.candidateName = { $regex: candidateName, $options: 'i' };
+    const filter = {
+      recruiterName: { $nin: [/ravi kumar/i, /john doe/i] },
+      candidateName: { $nin: [/john doe/i, /ravi kumar/i] }
+    };
+    if (candidateName) filter.candidateName = { $regex: candidateName, $options: 'i', $nin: [/john doe/i, /ravi kumar/i] };
     const data = await StatusAudit.find(filter).sort({ changedDate: -1 });
     res.json(data);
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -870,7 +911,10 @@ app.get('/api/status-audit', async (req, res) => {
 app.get('/api/monitoring/weekly', async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
-    const filter = {};
+    const filter = {
+      recruiterName: { $nin: [/ravi kumar/i, /john doe/i] },
+      candidateName: { $nin: [/john doe/i, /ravi kumar/i] }
+    };
     if (startDate || endDate) {
       filter.monitoringDate = {};
       if (startDate) filter.monitoringDate.$gte = new Date(startDate);
@@ -886,7 +930,10 @@ app.get('/api/monitoring/weekly', async (req, res) => {
 app.get('/api/monitoring/monthly', async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
-    const filter = {};
+    const filter = {
+      recruiterName: { $nin: [/ravi kumar/i, /john doe/i] },
+      candidateName: { $nin: [/john doe/i, /ravi kumar/i] }
+    };
     if (startDate || endDate) {
       filter.monitoringDate = {};
       if (startDate) filter.monitoringDate.$gte = new Date(startDate);
@@ -896,6 +943,152 @@ app.get('/api/monitoring/monthly', async (req, res) => {
     const summary = aggregateEntries(entries);
     res.json({ summary, total: entries.length });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GET Master Drilldown View (Hierarchical SR -> Recruiter -> Candidate)
+app.get('/api/monitoring/master-drilldown', async (req, res) => {
+  try {
+    const filter = {
+      recruiterName: { $nin: [/ravi kumar/i, /john doe/i] },
+      candidateName: { $nin: [/john doe/i, /ravi kumar/i] }
+    };
+    const entries = await ProcessMonitor.find(filter).sort({ monitoringDate: -1, createdAt: -1 });
+
+    const now = new Date();
+    const startOfWeek = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
+    const startOfMonth = new Date(now.getTime() - 30 * 24 * 3600 * 1000);
+
+    const srMap = {};
+
+    entries.forEach(e => {
+      const srName = (e.seniorRecruiter || 'No SR Assigned').trim();
+      const recruiterName = (e.recruiterName || 'Unknown Recruiter').trim();
+      const candidateName = (e.candidateName || 'Unknown Candidate').trim();
+
+      if (!srMap[srName]) {
+        srMap[srName] = { srName, recruiters: {} };
+      }
+      if (!srMap[srName].recruiters[recruiterName]) {
+        srMap[srName].recruiters[recruiterName] = {
+          recruiterName,
+          status: 'achieved',
+          totalCandidates: 0,
+          candidates: {}
+        };
+      }
+
+      const recruiter = srMap[srName].recruiters[recruiterName];
+
+      if (!recruiter.candidates[candidateName]) {
+        recruiter.candidates[candidateName] = {
+          candidateName,
+          candidateId: e._id,
+          recruiterName: recruiterName,
+          srName: srName,
+          status: e.candidateStatus || 'Active',
+          isTargeted: e.isTargetedProfile || false,
+          shortApps: e.shortApplications || 0,
+          longApps: e.longApplications || 0,
+          totalApps: e.totalApplications || 0,
+          interviewScheduled: e.interviewScheduled || false,
+          interviewStatus: e.interviewStatus || '',
+          interviewOutcome: e.interviewOutcome || '',
+          interviewDate: e.monitoringDate,
+          interviewCount: e.interviewCount || 0,
+          interviewFeedback: e.feedbackStatus || '',
+          interviewComments: e.comments || '',
+          remarks: e.processAnalystRemarks || '',
+          recruiterComments: e.comments || '',
+          placementNotes: e.notes || '',
+          latestActivity: e.dailyObservation || '',
+          tlLegitimacy: e.interviewLegitimacy || 'Pending Verification',
+          tlVerificationComment: e.tlVerificationComment || '',
+          monitoringEntries: []
+        };
+      }
+
+      recruiter.candidates[candidateName].monitoringEntries.push(e);
+    });
+
+    const result = Object.values(srMap).map(sr => {
+      const recruitersList = Object.values(sr.recruiters).map(rec => {
+        const candidatesList = Object.values(rec.candidates).map(cand => {
+          const weeklyEntries = cand.monitoringEntries.filter(e => new Date(e.monitoringDate) >= startOfWeek);
+          const monthlyEntries = cand.monitoringEntries.filter(e => new Date(e.monitoringDate) >= startOfMonth);
+
+          const weeklyAvg = weeklyEntries.length
+            ? Math.round(weeklyEntries.reduce((s, e) => s + (e.complianceScore || 0), 0) / weeklyEntries.length)
+            : 0;
+
+          const monthlyAvg = monthlyEntries.length
+            ? Math.round(monthlyEntries.reduce((s, e) => s + (e.complianceScore || 0), 0) / monthlyEntries.length)
+            : 0;
+
+          delete cand.monitoringEntries;
+
+          return {
+            ...cand,
+            weeklyPerformance: weeklyAvg,
+            monthlyPerformance: monthlyAvg
+          };
+        });
+
+        const recruiterWeeklyAvg = candidatesList.length
+          ? Math.round(candidatesList.reduce((s, c) => s + c.weeklyPerformance, 0) / candidatesList.length)
+          : 0;
+
+        const recruiterMonthlyAvg = candidatesList.length
+          ? Math.round(candidatesList.reduce((s, c) => s + c.monthlyPerformance, 0) / candidatesList.length)
+          : 0;
+
+        const recruiterStatus = recruiterMonthlyAvg >= 80 ? 'achieved' : recruiterMonthlyAvg >= 60 ? 'below_target' : 'missed';
+
+        return {
+          recruiterName: rec.recruiterName,
+          status: recruiterStatus,
+          totalCandidates: candidatesList.length,
+          weeklyPerformance: recruiterWeeklyAvg,
+          monthlyPerformance: recruiterMonthlyAvg,
+          candidates: candidatesList
+        };
+      });
+
+      const totalRecs = recruitersList.length;
+      const totalCands = recruitersList.reduce((s, r) => s + r.totalCandidates, 0);
+
+      const statusCounts = { Active: 0, Hold: 0, Backout: 0, Placed: 0 };
+      recruitersList.forEach(r => {
+        r.candidates.forEach(c => {
+          if (statusCounts[c.status] !== undefined) {
+            statusCounts[c.status]++;
+          } else {
+            statusCounts[c.status] = (statusCounts[c.status] || 0) + 1;
+          }
+        });
+      });
+
+      const srWeeklyAvg = recruitersList.length
+        ? Math.round(recruitersList.reduce((s, r) => s + r.weeklyPerformance, 0) / recruitersList.length)
+        : 0;
+      const srMonthlyAvg = recruitersList.length
+        ? Math.round(recruitersList.reduce((s, r) => s + r.monthlyPerformance, 0) / recruitersList.length)
+        : 0;
+
+      return {
+        srName: sr.srName,
+        totalRecruiters: totalRecs,
+        totalCandidates: totalCands,
+        statusCounts,
+        weeklyPerformance: srWeeklyAvg,
+        monthlyPerformance: srMonthlyAvg,
+        recruiters: recruitersList
+      };
+    });
+
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Freezing snapshots
