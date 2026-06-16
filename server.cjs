@@ -692,7 +692,7 @@ app.get('/api/monitoring/executive-summary', async (req, res) => {
     
     const interviewEntries = entries.filter(e => e.interviewCount > 0);
     const legitCount = interviewEntries.filter(e => e.interviewLegitimacy === 'Legit').length;
-    const legitimacyPct = interviewEntries.length ? Math.round((legitCount / interviewEntries.length) * 100) : 100;
+    const legitimacyPct = interviewEntries.length ? Math.round((legitCount / interviewEntries.length) * 100) : 0;
     
     const openFlags = await EscalationFlag.countDocuments({
       resolved: false,
