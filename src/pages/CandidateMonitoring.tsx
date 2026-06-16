@@ -18,7 +18,7 @@ export default function CandidateMonitoring() {
   const [view, setView] = useState<'cards' | 'table'>('cards')
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState({
-    name: '', recruiter: '', interviewCount: 0,
+    name: '', recruiter: '', interviewCount: '',
     feedbackStatus: 'Not Started', warningStatus: false, warningNote: '',
     linkedIn: ''
   })
@@ -39,14 +39,17 @@ export default function CandidateMonitoring() {
     fetch('/api/candidates', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form)
+      body: JSON.stringify({
+        ...form,
+        interviewCount: parseInt(form.interviewCount as any) || 0
+      })
     })
       .then(r => r.json())
       .then(() => {
         fetchCandidates()
         setShowModal(false)
         setForm({
-          name: '', recruiter: '', interviewCount: 0,
+          name: '', recruiter: '', interviewCount: '',
           feedbackStatus: 'Not Started', warningStatus: false, warningNote: '',
           linkedIn: ''
         })
@@ -170,11 +173,17 @@ export default function CandidateMonitoring() {
                 <div className="form-group">
                   <label>Interviews Count</label>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     className="form-control"
                     required
                     value={form.interviewCount}
-                    onChange={e => setForm({ ...form, interviewCount: parseInt(e.target.value) || 0 })}
+                    onChange={e => {
+                      let val = e.target.value.replace(/\D/g, '')
+                      if (val.length > 1 && val.startsWith('0')) val = val.replace(/^0+/, '')
+                      setForm({ ...form, interviewCount: val })
+                    }}
                   />
                 </div>
                 <div className="form-group">

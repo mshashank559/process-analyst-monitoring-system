@@ -143,8 +143,8 @@ export default function ProcessAnalystMonitoring() {
     candidateName: '',
     candidateStatus: 'Active',
     statusComment: '',
-    longApplications: 0,
-    shortApplications: 0,
+    longApplications: '',
+    shortApplications: '',
     connectedTwiceToday: 'yes',
     connectionReason: '',
     call1Timestamp: '',
@@ -152,7 +152,7 @@ export default function ProcessAnalystMonitoring() {
     communicationMode: 'Call',
     communicatedInEnglish: 'yes',
     englishComplianceReason: '',
-    interviewCount: 0,
+    interviewCount: '',
     interviewStatus: '',
     interviewLegitimacy: 'Pending Verification',
     legitimacyComment: '',
@@ -162,9 +162,9 @@ export default function ProcessAnalystMonitoring() {
     processAnalystRemarks: '',
     isTargetedProfile: false,
     profileStatus: 'Active',
-    targetedLongApps: 0,
-    targetedShortApps: 0,
-    targetedInterviewCount: 0,
+    targetedLongApps: '',
+    targetedShortApps: '',
+    targetedInterviewCount: '',
     targetedConnectedTwice: 'yes',
     targetedConnectionReason: ''
   })
@@ -233,10 +233,12 @@ export default function ProcessAnalystMonitoring() {
   })
 
   // Live total applications calculation
-  const calculatedTotal = form.longApplications + form.shortApplications
-  const longTargetStatus = form.longApplications >= 60 ? 'achieved' : 'missed'
-  const shortTargetStatus = form.shortApplications >= 40 ? 'achieved' : 'missed'
-  const overallTargetStatus = (form.longApplications >= 60 && form.shortApplications >= 40) ? 'achieved' : (form.longApplications === 0 && form.shortApplications === 0) ? 'missed' : 'below_target'
+  const longAppVal = parseInt(form.longApplications as any) || 0
+  const shortAppVal = parseInt(form.shortApplications as any) || 0
+  const calculatedTotal = longAppVal + shortAppVal
+  const longTargetStatus = longAppVal >= 60 ? 'achieved' : 'missed'
+  const shortTargetStatus = shortAppVal >= 40 ? 'achieved' : 'missed'
+  const overallTargetStatus = (longAppVal >= 60 && shortAppVal >= 40) ? 'achieved' : (longAppVal === 0 && shortAppVal === 0) ? 'missed' : 'below_target'
 
   // Fetch Dashboard Stats
   const fetchExecStats = useCallback(() => {
@@ -326,12 +328,13 @@ export default function ProcessAnalystMonitoring() {
     }
   }, [activeTab, fetchExecStats, fetchFlags, fetchSnapshots, fetchTrends, fetchDrilldown])
 
-  // Live Score Calculator Preview
   const getLiveScore = () => {
     let score = 0
-    if (form.longApplications >= 60 && form.shortApplications >= 40) {
+    const longVal = parseInt(form.longApplications as any) || 0
+    const shortVal = parseInt(form.shortApplications as any) || 0
+    if (longVal >= 60 && shortVal >= 40) {
       score += 30
-    } else if (form.longApplications > 0 || form.shortApplications > 0) {
+    } else if (longVal > 0 || shortVal > 0) {
       score += 15
     }
     if (form.connectedTwiceToday === 'yes') score += 25
@@ -368,6 +371,12 @@ export default function ProcessAnalystMonitoring() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ...form,
+        longApplications: parseInt(form.longApplications as any) || 0,
+        shortApplications: parseInt(form.shortApplications as any) || 0,
+        interviewCount: parseInt(form.interviewCount as any) || 0,
+        targetedLongApps: parseInt(form.targetedLongApps as any) || 0,
+        targetedShortApps: parseInt(form.targetedShortApps as any) || 0,
+        targetedInterviewCount: parseInt(form.targetedInterviewCount as any) || 0,
         monitoringDate: new Date(),
         // Save overall target status on document
         longTargetStatus,
@@ -390,8 +399,8 @@ export default function ProcessAnalystMonitoring() {
           candidateName: '',
           candidateStatus: 'Active',
           statusComment: '',
-          longApplications: 0,
-          shortApplications: 0,
+          longApplications: '',
+          shortApplications: '',
           connectedTwiceToday: 'yes',
           connectionReason: '',
           call1Timestamp: '',
@@ -399,7 +408,7 @@ export default function ProcessAnalystMonitoring() {
           communicationMode: 'Call',
           communicatedInEnglish: 'yes',
           englishComplianceReason: '',
-          interviewCount: 0,
+          interviewCount: '',
           interviewStatus: '',
           interviewLegitimacy: 'Pending Verification',
           legitimacyComment: '',
@@ -409,9 +418,9 @@ export default function ProcessAnalystMonitoring() {
           processAnalystRemarks: '',
           isTargetedProfile: false,
           profileStatus: 'Active',
-          targetedLongApps: 0,
-          targetedShortApps: 0,
-          targetedInterviewCount: 0,
+          targetedLongApps: '',
+          targetedShortApps: '',
+          targetedInterviewCount: '',
           targetedConnectedTwice: 'yes',
           targetedConnectionReason: ''
         })
@@ -698,15 +707,39 @@ export default function ProcessAnalystMonitoring() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 12 }}>
                   <div className="form-group">
                     <label>Long Applications Submitted *</label>
-                    <input type="number" min="0" className="form-control" required value={form.longApplications} onChange={e => setForm({ ...form, longApplications: parseInt(e.target.value) || 0 })} />
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      className="form-control"
+                      required
+                      value={form.longApplications}
+                      onChange={e => {
+                        let val = e.target.value.replace(/\D/g, '')
+                        if (val.length > 1 && val.startsWith('0')) val = val.replace(/^0+/, '')
+                        setForm({ ...form, longApplications: val })
+                      }}
+                    />
                   </div>
                   <div className="form-group">
                     <label>Short Applications Submitted *</label>
-                    <input type="number" min="0" className="form-control" required value={form.shortApplications} onChange={e => setForm({ ...form, shortApplications: parseInt(e.target.value) || 0 })} />
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      className="form-control"
+                      required
+                      value={form.shortApplications}
+                      onChange={e => {
+                        let val = e.target.value.replace(/\D/g, '')
+                        if (val.length > 1 && val.startsWith('0')) val = val.replace(/^0+/, '')
+                        setForm({ ...form, shortApplications: val })
+                      }}
+                    />
                   </div>
                   <div className="form-group">
                     <label>Total Applications (Auto)</label>
-                    <input type="number" className="form-control" disabled value={calculatedTotal} />
+                    <input type="text" className="form-control" disabled value={calculatedTotal} />
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 12, padding: 12, borderRadius: 8, background: 'var(--surface2)', fontSize: 13 }}>
@@ -799,7 +832,18 @@ export default function ProcessAnalystMonitoring() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
                   <div className="form-group">
                     <label>Interview Count</label>
-                    <input type="number" min="0" className="form-control" value={form.interviewCount} onChange={e => setForm({ ...form, interviewCount: parseInt(e.target.value) || 0 })} />
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      className="form-control"
+                      value={form.interviewCount}
+                      onChange={e => {
+                        let val = e.target.value.replace(/\D/g, '')
+                        if (val.length > 1 && val.startsWith('0')) val = val.replace(/^0+/, '')
+                        setForm({ ...form, interviewCount: val })
+                      }}
+                    />
                   </div>
                   <div className="form-group">
                     <label>Interview Status</label>
@@ -875,19 +919,52 @@ export default function ProcessAnalystMonitoring() {
                       </div>
                       <div className="form-group">
                         <label>Targeted Long Apps</label>
-                        <input className="form-control" type="number" min="0" value={form.targetedLongApps} onChange={e => setForm({ ...form, targetedLongApps: parseInt(e.target.value) || 0 })} />
+                        <input
+                          className="form-control"
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={form.targetedLongApps}
+                          onChange={e => {
+                            let val = e.target.value.replace(/\D/g, '')
+                            if (val.length > 1 && val.startsWith('0')) val = val.replace(/^0+/, '')
+                            setForm({ ...form, targetedLongApps: val })
+                          }}
+                        />
                       </div>
                       <div className="form-group">
                         <label>Targeted Short Apps</label>
-                        <input className="form-control" type="number" min="0" value={form.targetedShortApps} onChange={e => setForm({ ...form, targetedShortApps: parseInt(e.target.value) || 0 })} />
+                        <input
+                          className="form-control"
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={form.targetedShortApps}
+                          onChange={e => {
+                            let val = e.target.value.replace(/\D/g, '')
+                            if (val.length > 1 && val.startsWith('0')) val = val.replace(/^0+/, '')
+                            setForm({ ...form, targetedShortApps: val })
+                          }}
+                        />
                       </div>
                       <div className="form-group">
                         <label>Targeted Total Applications (Auto-calculated)</label>
-                        <input className="form-control" type="text" disabled value={form.targetedLongApps + form.targetedShortApps} />
+                        <input className="form-control" type="text" disabled value={(parseInt(form.targetedLongApps as any) || 0) + (parseInt(form.targetedShortApps as any) || 0)} />
                       </div>
                       <div className="form-group">
                         <label>Targeted Interview Count</label>
-                        <input className="form-control" type="number" min="0" value={form.targetedInterviewCount} onChange={e => setForm({ ...form, targetedInterviewCount: parseInt(e.target.value) || 0 })} />
+                        <input
+                          className="form-control"
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={form.targetedInterviewCount}
+                          onChange={e => {
+                            let val = e.target.value.replace(/\D/g, '')
+                            if (val.length > 1 && val.startsWith('0')) val = val.replace(/^0+/, '')
+                            setForm({ ...form, targetedInterviewCount: val })
+                          }}
+                        />
                       </div>
                       <div className="form-group">
                         <label>Targeted Connected Twice?</label>

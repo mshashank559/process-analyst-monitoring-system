@@ -324,8 +324,18 @@ export default function PerformanceIntel() {
             </div>
             <div className="form-group">
               <label>Monthly Target</label>
-              <input className="form-control" type="number" value={editRec.monthlyTarget || 0}
-                onChange={e => setEditRec({ ...editRec, monthlyTarget: +e.target.value })} />
+              <input
+                className="form-control"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={editRec.monthlyTarget === 0 ? '' : (editRec.monthlyTarget || '')}
+                onChange={e => {
+                  let val = e.target.value.replace(/\D/g, '')
+                  if (val.length > 1 && val.startsWith('0')) val = val.replace(/^0+/, '')
+                  setEditRec({ ...editRec, monthlyTarget: val === '' ? 0 : parseInt(val, 10) })
+                }}
+              />
             </div>
             <div className="modal-actions">
               <button className="btn btn-outline" onClick={() => setEditRec(null)}>Cancel</button>
@@ -349,13 +359,33 @@ export default function PerformanceIntel() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div className="form-group">
                 <label>Monthly Target (Profiles)</label>
-                <input className="form-control" type="number" value={editCand.monthlyTarget || 0}
-                  onChange={e => setEditCand({ ...editCand, monthlyTarget: +e.target.value })} />
+                <input
+                  className="form-control"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={editCand.monthlyTarget === 0 ? '' : (editCand.monthlyTarget || '')}
+                  onChange={e => {
+                    let val = e.target.value.replace(/\D/g, '')
+                    if (val.length > 1 && val.startsWith('0')) val = val.replace(/^0+/, '')
+                    setEditCand({ ...editCand, monthlyTarget: val === '' ? 0 : parseInt(val, 10) })
+                  }}
+                />
               </div>
               <div className="form-group">
                 <label>Apps Submitted This Month</label>
-                <input className="form-control" type="number" value={editCand.monthlyApps || 0}
-                  onChange={e => setEditCand({ ...editCand, monthlyApps: +e.target.value })} />
+                <input
+                  className="form-control"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={editCand.monthlyApps === 0 ? '' : (editCand.monthlyApps || '')}
+                  onChange={e => {
+                    let val = e.target.value.replace(/\D/g, '')
+                    if (val.length > 1 && val.startsWith('0')) val = val.replace(/^0+/, '')
+                    setEditCand({ ...editCand, monthlyApps: val === '' ? 0 : parseInt(val, 10) })
+                  }}
+                />
               </div>
             </div>
             <div className="form-group">

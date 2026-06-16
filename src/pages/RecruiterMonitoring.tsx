@@ -21,7 +21,7 @@ export default function RecruiterMonitoring() {
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState({
     name: '', teamLead: 'Shilp', candidate: '',
-    target: 8, actual: 0, longApps: 0, shortApps: 0
+    target: '8', actual: '', longApps: '', shortApps: ''
   })
 
   const fetchRecruiters = () => {
@@ -47,15 +47,28 @@ export default function RecruiterMonitoring() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    
+    const targetVal = parseInt(form.target as any) || 0
+    const actualVal = parseInt(form.actual as any) || 0
+    const longVal = parseInt(form.longApps as any) || 0
+    const shortVal = parseInt(form.shortApps as any) || 0
+
     // Calculate status based on actual vs target
     let status = 'missed'
-    if (form.actual >= form.target) {
+    if (actualVal >= targetVal) {
       status = 'achieved'
-    } else if (form.actual >= form.target * 0.6) {
+    } else if (actualVal >= targetVal * 0.6) {
       status = 'below_target'
     }
 
-    const payload = { ...form, status }
+    const payload = {
+      ...form,
+      target: targetVal,
+      actual: actualVal,
+      longApps: longVal,
+      shortApps: shortVal,
+      status
+    }
 
     fetch('/api/recruiters', {
       method: 'POST',
@@ -68,7 +81,7 @@ export default function RecruiterMonitoring() {
         setShowModal(false)
         setForm({
           name: '', teamLead: 'Shilp', candidate: '',
-          target: 8, actual: 0, longApps: 0, shortApps: 0
+          target: '8', actual: '', longApps: '', shortApps: ''
         })
       })
       .catch(err => console.error(err))
@@ -190,41 +203,65 @@ export default function RecruiterMonitoring() {
                 <div className="form-group">
                   <label>Daily Target</label>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     className="form-control"
                     required
                     value={form.target}
-                    onChange={e => setForm({ ...form, target: parseInt(e.target.value) || 0 })}
+                    onChange={e => {
+                      let val = e.target.value.replace(/\D/g, '')
+                      if (val.length > 1 && val.startsWith('0')) val = val.replace(/^0+/, '')
+                      setForm({ ...form, target: val })
+                    }}
                   />
                 </div>
                 <div className="form-group">
                   <label>Actual</label>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     className="form-control"
                     required
                     value={form.actual}
-                    onChange={e => setForm({ ...form, actual: parseInt(e.target.value) || 0 })}
+                    onChange={e => {
+                      let val = e.target.value.replace(/\D/g, '')
+                      if (val.length > 1 && val.startsWith('0')) val = val.replace(/^0+/, '')
+                      setForm({ ...form, actual: val })
+                    }}
                   />
                 </div>
                 <div className="form-group">
                   <label>Long Apps</label>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     className="form-control"
                     required
                     value={form.longApps}
-                    onChange={e => setForm({ ...form, longApps: parseInt(e.target.value) || 0 })}
+                    onChange={e => {
+                      let val = e.target.value.replace(/\D/g, '')
+                      if (val.length > 1 && val.startsWith('0')) val = val.replace(/^0+/, '')
+                      setForm({ ...form, longApps: val })
+                    }}
                   />
                 </div>
                 <div className="form-group">
                   <label>Short Apps</label>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     className="form-control"
                     required
                     value={form.shortApps}
-                    onChange={e => setForm({ ...form, shortApps: parseInt(e.target.value) || 0 })}
+                    onChange={e => {
+                      let val = e.target.value.replace(/\D/g, '')
+                      if (val.length > 1 && val.startsWith('0')) val = val.replace(/^0+/, '')
+                      setForm({ ...form, shortApps: val })
+                    }}
                   />
                 </div>
               </div>
