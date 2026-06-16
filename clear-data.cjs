@@ -8,7 +8,7 @@ async function clearAll() {
   await mongoose.connect(process.env.MONGODB_URI, { family: 4 });
   console.log('✅ Connected\n');
 
-  const collections = ['recruiters', 'candidates', 'tasks', 'issues', 'reports', 'audits', 'updates', 'processmonitors'];
+  const collections = ['recruiters', 'candidates', 'tasks', 'issues', 'reports', 'audits', 'updates', 'processmonitors', 'statusaudits', 'escalationflags', 'weeklysnapshots', 'monthlysnapshots'];
   
   for (const col of collections) {
     try {
