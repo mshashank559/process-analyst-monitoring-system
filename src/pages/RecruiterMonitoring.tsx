@@ -395,7 +395,7 @@ export default function RecruiterMonitoring() {
                     <td>{r.interviewStatus || '—'}</td>
                     <td>{r.interviewDate ? new Date(r.interviewDate).toLocaleDateString('en-IN') : '—'}</td>
                     <td>{r.gchat || '—'}</td>
-                    <td>{r.gchatFollowUp || '—'}</td>
+                    <td style={{ fontSize: 11, color: 'var(--text-dim)', maxWidth: 150, wordBreak: 'break-word', whiteSpace: 'normal' }} title={r.gchatFollowUp}>{r.gchatFollowUp || '—'}</td>
                     <td>
                       <span className={`tag ${r.firstCallDone === 'Yes' ? 'tag-green' : 'tag-red'}`}>{r.firstCallDone || 'No'}</span>
                     </td>

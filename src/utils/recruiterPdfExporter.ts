@@ -112,28 +112,9 @@ export function generateRecruiterLandscapePDF(data: RecruiterPDFData[], dateRang
   }
 
   const tableRow = (item: RecruiterPDFData, i: number) => {
-    if (y > H - 25) {
-      doc.addPage()
-      drawHeader(doc.getNumberOfPages())
-      y = 32
-      tableHeader()
-    }
-
-    if (item.highlightColor) {
-      const hc = item.highlightColor.toLowerCase()
-      if (hc === 'red') doc.setFillColor(254, 226, 226)
-      else if (hc === 'green') doc.setFillColor(220, 252, 231)
-      else if (hc === 'yellow') doc.setFillColor(254, 249, 195)
-      else if (hc === 'blue') doc.setFillColor(219, 234, 254)
-      doc.rect(10, y, W - 20, 7, 'F')
-    } else if (i % 2 === 0) {
-      doc.setFillColor(248, 249, 255)
-      doc.rect(10, y, W - 20, 7, 'F')
-    }
-
+    // Configure font settings first to measure text split sizes accurately
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(5)
-    doc.setTextColor(...BLACK)
 
     const cols = [
       { text: item.date ? new Date(item.date).toLocaleDateString('en-IN') : '—', w: 15 },
@@ -156,24 +137,57 @@ export function generateRecruiterLandscapePDF(data: RecruiterPDFData[], dateRang
       { text: item.remarks, w: 22 }
     ]
 
-    let cx = 12
-    cols.forEach(c => {
+    // Calculate maximum number of lines across all columns
+    let maxLines = 1
+    const colsLines = cols.map(c => {
       const textVal = String(c.text || '—')
-      // Substring long texts to fit column width
-      let displayVal = textVal
-      const charLimit = Math.max(6, Math.floor(c.w * 1.5))
-      if (textVal.length > charLimit) {
-        displayVal = textVal.substring(0, charLimit - 3) + '...'
+      // Subtract a small padding from column width (e.g. 1.5mm) to avoid touching cell edges
+      const lines = doc.splitTextToSize(textVal, c.w - 1.5)
+      if (lines.length > maxLines) {
+        maxLines = lines.length
       }
+      return { lines, w: c.w, color: c.color }
+    })
+
+    const rowHeight = Math.max(7, 3 + maxLines * 2.2)
+
+    // Check if drawing this row would exceed the page print boundary (footer starts at H - 10)
+    if (y + rowHeight > H - 15) {
+      doc.addPage()
+      drawHeader(doc.getNumberOfPages())
+      y = 32
+      tableHeader()
+    }
+
+    // Draw row background colors
+    if (item.highlightColor) {
+      const hc = item.highlightColor.toLowerCase()
+      if (hc === 'red') doc.setFillColor(254, 226, 226)
+      else if (hc === 'green') doc.setFillColor(220, 252, 231)
+      else if (hc === 'yellow') doc.setFillColor(254, 249, 195)
+      else if (hc === 'blue') doc.setFillColor(219, 234, 254)
+      doc.rect(10, y, W - 20, rowHeight, 'F')
+    } else if (i % 2 === 0) {
+      doc.setFillColor(248, 249, 255)
+      doc.rect(10, y, W - 20, rowHeight, 'F')
+    }
+
+    // Render cells content
+    let cx = 12
+    colsLines.forEach(c => {
       doc.setTextColor(...(c.color || BLACK))
-      doc.text(displayVal, cx, y + 4.8)
+      c.lines.forEach((line: string, lineIdx: number) => {
+        // Vertical rendering offsets for each line
+        doc.text(line, cx, y + 4.2 + (lineIdx * 2.2))
+      })
       cx += c.w
     })
 
+    // Draw bottom row divider line
     doc.setDrawColor(220, 220, 235)
     doc.setLineWidth(0.1)
-    doc.line(10, y + 7, W - 10, y + 7)
-    y += 7
+    doc.line(10, y + rowHeight, W - 10, y + rowHeight)
+    y += rowHeight
   }
 
   // Draw Page 1
