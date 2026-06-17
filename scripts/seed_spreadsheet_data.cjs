@@ -747,9 +747,9 @@ const entries = [
     gchatFollowUp: '',
     firstCallDone: '',
     secondFollowUp: 'Chat',
-    followUpNotes: 'I shared the newly received assessment with the candidate...',
+    followUpNotes: 'I shared the newly received assessment with the candidate, and he confirmed that he would complete it and provide an update upon completion. Additionally, he requested a separate resume tailored for the Data Engineer role to support his personal marketing activities. I informed him that I would arrange a new email ID and share the updated Data Engineer resume with him accordingly.',
     targetedProfile: '',
-    remarks: 'I shared the newly received assessment...'
+    remarks: 'I shared the newly received assessment with the candidate.'
   },
   {
     date: new Date('2026-06-15'),
@@ -764,10 +764,10 @@ const entries = [
     interviewStatus: '',
     interviewDate: null,
     gchat: 'Yes',
-    gchatFollowUp: 'I shared the newly received assessment...',
+    gchatFollowUp: 'I shared the newly received assessment with the candidate, and he confirmed that he would complete it and provide an update upon completion. Additionally, he requested a separate resume tailored for the Data Engineer role to support his personal marketing activities. I informed him that I would arrange a new email ID and share the updated Data Engineer resume with him accordingly.',
     firstCallDone: 'Yes',
     secondFollowUp: '',
-    followUpNotes: 'I shared the newly received assessment...',
+    followUpNotes: 'I shared the newly received assessment with the candidate, and he confirmed that he would complete it and provide an update upon completion. Additionally, he requested a separate resume tailored for the Data Engineer role to support his personal marketing activities. I informed him that I would arrange a new email ID and share the updated Data Engineer resume with him accordingly.',
     targetedProfile: '',
     remarks: ''
   },
@@ -824,10 +824,10 @@ const entries = [
     interviewStatus: '',
     interviewDate: null,
     gchat: 'Yes',
-    gchatFollowUp: 'I reached out to the candidate...',
+    gchatFollowUp: 'I reached out to the candidate regarding a required response, and he promptly submitted it. Furthermore, after the updated resume was completed, I shared it with him for verification. He acknowledged receipt and informed me that he would review it and provide an update by tomorrow morning.',
     firstCallDone: 'Yes',
     secondFollowUp: '',
-    followUpNotes: 'I reached out to the candidate...',
+    followUpNotes: 'I reached out to the candidate regarding a required response, and he promptly submitted it. Furthermore, after the updated resume was completed, I shared it with him for verification. He acknowledged receipt and informed me that he would review it and provide an update by tomorrow morning.',
     targetedProfile: '',
     remarks: ''
   },
