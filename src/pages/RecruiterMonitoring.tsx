@@ -771,9 +771,9 @@ export default function RecruiterMonitoring() {
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             onClick={e => e.stopPropagation()}
-            style={{ maxWidth: 850, padding: '28px', background: 'rgba(20, 20, 35, 0.95)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '16px', boxShadow: '0 24px 48px rgba(0,0,0,0.5)' }}
+            style={{ maxWidth: 850, maxHeight: '90vh', display: 'flex', flexDirection: 'column', padding: '28px', background: 'rgba(20, 20, 35, 0.95)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '16px', boxShadow: '0 24px 48px rgba(0,0,0,0.5)' }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '12px', flexShrink: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Eye style={{ color: '#60a5fa' }} size={22} />
                 <h3 style={{ margin: 0, color: '#fff', fontSize: '20px', fontWeight: 600 }}>Detailed Daily Entry Inspection</h3>
@@ -781,7 +781,7 @@ export default function RecruiterMonitoring() {
               <button className="icon-btn" onClick={() => { setViewModalOpen(false); setSelectedRecruiter(null); }} style={{ color: 'rgba(255, 255, 255, 0.5)', cursor: 'pointer' }}><X size={20} /></button>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', overflowY: 'auto', paddingRight: '8px', flexGrow: 1 }}>
               
               {/* Row 1: Candidate & Recruiter basic info */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
@@ -884,7 +884,7 @@ export default function RecruiterMonitoring() {
 
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 24, borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20, borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '16px', flexShrink: 0 }}>
               <button className="btn btn-outline" onClick={() => { setViewModalOpen(false); setSelectedRecruiter(null); }}>Close Inspection</button>
             </div>
           </motion.div>
