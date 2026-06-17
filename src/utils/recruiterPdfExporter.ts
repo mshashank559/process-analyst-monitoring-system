@@ -19,6 +19,7 @@ export interface RecruiterPDFData {
   followUpNotes: string
   targetedProfile: string
   remarks: string
+  highlightColor?: string
 }
 
 export function generateRecruiterLandscapePDF(data: RecruiterPDFData[], dateRange: string) {
@@ -111,7 +112,14 @@ export function generateRecruiterLandscapePDF(data: RecruiterPDFData[], dateRang
       tableHeader()
     }
 
-    if (i % 2 === 0) {
+    if (item.highlightColor) {
+      const hc = item.highlightColor.toLowerCase()
+      if (hc === 'red') doc.setFillColor(254, 226, 226)
+      else if (hc === 'green') doc.setFillColor(220, 252, 231)
+      else if (hc === 'yellow') doc.setFillColor(254, 249, 195)
+      else if (hc === 'blue') doc.setFillColor(219, 234, 254)
+      doc.rect(10, y, W - 20, 7, 'F')
+    } else if (i % 2 === 0) {
       doc.setFillColor(248, 249, 255)
       doc.rect(10, y, W - 20, 7, 'F')
     }

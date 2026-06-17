@@ -61,8 +61,18 @@ const recruiterSchema = new mongoose.Schema({
   secondFollowUp: String,
   followUpNotes: String,
   targetedProfile: String,
-  remarks: String
+  remarks: String,
+  highlightColor: { type: String, default: "" }
 }, { timestamps: true });
+
+const candidateCredentialSchema = new mongoose.Schema({
+  seniorRecruiter: String,
+  recruiter: String,
+  candidateName: String,
+  email: String,
+  password: String
+}, { timestamps: true });
+
 
 const candidateSchema = new mongoose.Schema({
   name: String,
@@ -241,8 +251,9 @@ const escalationFlagSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // ─── Models ────────────────────────────────────────────────────────
-const Recruiter       = mongoose.model('Recruiter', recruiterSchema);
-const Candidate       = mongoose.model('Candidate', candidateSchema);
+const Recruiter           = mongoose.model('Recruiter', recruiterSchema);
+const CandidateCredential = mongoose.model('CandidateCredential', candidateCredentialSchema);
+const Candidate           = mongoose.model('Candidate', candidateSchema);
 const Task            = mongoose.model('Task', taskSchema);
 const Issue           = mongoose.model('Issue', issueSchema);
 const Report          = mongoose.model('Report', reportSchema);
@@ -339,6 +350,35 @@ app.post('/api/candidates', async (req, res) => {
 app.patch('/api/candidates/:id', async (req, res) => {
   try { const doc = await Candidate.findByIdAndUpdate(req.params.id, req.body, { new: true }); res.json(doc); }
   catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Credentials
+app.get('/api/credentials', async (req, res) => {
+  try {
+    const { search } = req.query;
+    let query = {};
+    if (search) {
+      query.$or = [
+        { seniorRecruiter: { $regex: search, $options: 'i' } },
+        { recruiter: { $regex: search, $options: 'i' } },
+        { candidateName: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } }
+      ];
+    }
+    const data = await CandidateCredential.find(query).sort({ createdAt: -1 });
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/credentials', async (req, res) => {
+  try {
+    const doc = await CandidateCredential.create(req.body);
+    res.json(doc);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Tasks

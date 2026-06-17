@@ -1,10 +1,11 @@
 import { motion } from 'framer-motion'
-import { LayoutDashboard, Users, LogOut } from 'lucide-react'
+import { LayoutDashboard, Users, LogOut, Key } from 'lucide-react'
 import type { Page } from '../App'
 
 const NAV = [
-  { id: 'dashboard',   label: 'Dashboard',          icon: LayoutDashboard },
-  { id: 'recruiters',  label: 'Recruiter Monitoring',icon: Users },
+  { id: 'dashboard',   label: 'Dashboard',             icon: LayoutDashboard },
+  { id: 'recruiters',  label: 'Recruiter Monitoring',  icon: Users },
+  { id: 'credentials', label: 'Candidate Credentials', icon: Key },
 ] as const
 
 interface Props { currentPage: Page; onNavigate: (p: Page) => void }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Search, Plus, X, Download } from 'lucide-react'
+import { Search, Plus, X, Download, Eye } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { generateRecruiterLandscapePDF } from '../utils/recruiterPdfExporter'
 import type { RecruiterPDFData } from '../utils/recruiterPdfExporter'
@@ -25,6 +25,7 @@ interface Recruiter {
   followUpNotes: string
   targetedProfile: string
   remarks: string
+  highlightColor?: string
 }
 
 const SR_OPTIONS = [
@@ -52,6 +53,32 @@ export default function RecruiterMonitoring() {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [showModal, setShowModal] = useState(false)
+  const [viewModalOpen, setViewModalOpen] = useState(false)
+  const [selectedRecruiter, setSelectedRecruiter] = useState<Recruiter | null>(null)
+
+  const getRowBgColor = (color?: string) => {
+    if (!color) return 'transparent';
+    switch (color.toLowerCase()) {
+      case 'red': return 'rgba(239, 68, 68, 0.15)';
+      case 'green': return 'rgba(34, 197, 94, 0.15)';
+      case 'yellow': return 'rgba(234, 179, 8, 0.15)';
+      case 'blue': return 'rgba(59, 130, 246, 0.15)';
+      default: return 'transparent';
+    }
+  }
+
+  const handleHighlight = (id: string, color: string) => {
+    fetch(`/api/recruiters/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ highlightColor: color })
+    })
+      .then(res => res.json())
+      .then(() => {
+        fetchRecruiters()
+      })
+      .catch(err => console.error(err))
+  }
   
   const [form, setForm] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -172,6 +199,7 @@ export default function RecruiterMonitoring() {
       "Follow-up Notes": item.followUpNotes || '—',
       "Targeted Profile (Y/N)": item.targetedProfile || '—',
       "Remarks": item.remarks || '—',
+      "Highlight Color": item.highlightColor || 'None'
     }))
     const ws = XLSX.utils.json_to_sheet(mappedData)
     const wb = XLSX.utils.book_new()
@@ -184,7 +212,7 @@ export default function RecruiterMonitoring() {
       "Date", "SR Name", "Recruiter Name", "Candidate Name", "Candidate Status",
       "Long Apps", "Short Apps", "Total Apps", "Interview Count", "Interview Status",
       "Interview Date", "GCHAT", "GCHAT FOLLOW UP", "1st Call Done (Y/N)",
-      "2nd Follow-up (Call/Chat/No)", "Follow-up Notes", "Targeted Profile (Y/N)", "Remarks"
+      "2nd Follow-up (Call/Chat/No)", "Follow-up Notes", "Targeted Profile (Y/N)", "Remarks", "Highlight Color"
     ]
     
     const csvRows = [
@@ -207,7 +235,8 @@ export default function RecruiterMonitoring() {
         `"${item.secondFollowUp || ''}"`,
         `"${(item.followUpNotes || '').replace(/"/g, '""')}"`,
         `"${item.targetedProfile || ''}"`,
-        `"${(item.remarks || '').replace(/"/g, '""')}"`
+        `"${(item.remarks || '').replace(/"/g, '""')}"`,
+        `"${item.highlightColor || 'None'}"`
       ].join(','))
     ]
     
@@ -287,7 +316,7 @@ export default function RecruiterMonitoring() {
         </div>
 
         <div className="table-wrap" style={{ overflowX: 'auto' }}>
-          <table style={{ minWidth: 1800 }}>
+          <table style={{ minWidth: 2000 }}>
             <thead>
               <tr>
                 <th style={{ width: 100 }}>Date</th>
@@ -307,13 +336,14 @@ export default function RecruiterMonitoring() {
                 <th style={{ width: 120 }}>2nd Follow-up</th>
                 <th style={{ width: 200 }}>Follow-up Notes</th>
                 <th style={{ width: 110 }}>Targeted Profile</th>
-                <th>Remarks</th>
+                <th style={{ width: 200 }}>Remarks</th>
+                <th style={{ width: 150, textAlign: 'center' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((r, i) => {
                 return (
-                  <motion.tr key={r._id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: Math.min(i * 0.03, 0.5) }}>
+                  <motion.tr key={r._id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: Math.min(i * 0.03, 0.5) }} style={{ backgroundColor: getRowBgColor(r.highlightColor) }}>
                     <td>{r.date ? new Date(r.date).toLocaleDateString('en-IN') : '—'}</td>
                     <td><span className="tag">{r.srName || '—'}</span></td>
                     <td style={{ fontWeight: 600 }}>{r.recruiterName || '—'}</td>
@@ -337,11 +367,60 @@ export default function RecruiterMonitoring() {
                       <span className={`tag ${r.firstCallDone === 'Yes' ? 'tag-green' : 'tag-red'}`}>{r.firstCallDone || 'No'}</span>
                     </td>
                     <td>{r.secondFollowUp || '—'}</td>
-                    <td style={{ fontSize: 11, color: 'var(--text-dim)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.followUpNotes}>{r.followUpNotes || '—'}</td>
+                    <td style={{ fontSize: 11, color: 'var(--text-dim)', maxWidth: 200, wordBreak: 'break-word', whiteSpace: 'normal' }} title={r.followUpNotes}>{r.followUpNotes || '—'}</td>
                     <td>
                       <span className={`tag ${r.targetedProfile === 'Yes' ? 'tag-green' : 'tag-red'}`}>{r.targetedProfile || 'No'}</span>
                     </td>
-                    <td style={{ fontSize: 11, color: 'var(--text-dim)' }}>{r.remarks || '—'}</td>
+                    <td style={{ fontSize: 11, color: 'var(--text-dim)', maxWidth: 200, wordBreak: 'break-word', whiteSpace: 'normal' }} title={r.remarks}>{r.remarks || '—'}</td>
+                    <td style={{ textAlign: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                        <button
+                          className="icon-btn"
+                          onClick={() => {
+                            setSelectedRecruiter(r)
+                            setViewModalOpen(true)
+                          }}
+                          title="View Details"
+                          style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#60a5fa', display: 'inline-flex', padding: 4 }}
+                        >
+                          <Eye size={15} />
+                        </button>
+                        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                          {['red', 'green', 'yellow', 'blue'].map(color => (
+                            <button
+                              key={color}
+                              onClick={() => handleHighlight(r._id, color)}
+                              style={{
+                                width: 12,
+                                height: 12,
+                                borderRadius: '50%',
+                                background: color === 'red' ? '#ef4444' : color === 'green' ? '#22c55e' : color === 'yellow' ? '#eab308' : '#3b82f6',
+                                border: r.highlightColor === color ? '2px solid #fff' : '1px solid rgba(255,255,255,0.2)',
+                                cursor: 'pointer',
+                                padding: 0
+                              }}
+                              title={`Highlight ${color}`}
+                            />
+                          ))}
+                          {r.highlightColor && (
+                            <button
+                              onClick={() => handleHighlight(r._id, '')}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: 'rgba(255,255,255,0.5)',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                padding: 2
+                              }}
+                              title="Clear Highlight"
+                            >
+                              <X size={10} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </td>
                   </motion.tr>
                 )
               })}
@@ -588,6 +667,127 @@ export default function RecruiterMonitoring() {
                 <button type="submit" className="btn btn-primary">Save Entry</button>
               </div>
             </form>
+          </motion.div>
+        </div>
+      )}
+
+      {viewModalOpen && selectedRecruiter && (
+        <div className="modal-overlay" onClick={() => { setViewModalOpen(false); setSelectedRecruiter(null); }}>
+          <motion.div
+            className="modal"
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            onClick={e => e.stopPropagation()}
+            style={{ maxWidth: 850, padding: '28px', background: 'rgba(20, 20, 35, 0.95)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '16px', boxShadow: '0 24px 48px rgba(0,0,0,0.5)' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Eye style={{ color: '#60a5fa' }} size={22} />
+                <h3 style={{ margin: 0, color: '#fff', fontSize: '20px', fontWeight: 600 }}>Detailed Daily Entry Inspection</h3>
+              </div>
+              <button className="icon-btn" onClick={() => { setViewModalOpen(false); setSelectedRecruiter(null); }} style={{ color: 'rgba(255, 255, 255, 0.5)', cursor: 'pointer' }}><X size={20} /></button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              
+              {/* Row 1: Candidate & Recruiter basic info */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                <div style={{ background: 'rgba(255, 255, 255, 0.02)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                  <h4 style={{ margin: '0 0 12px 0', color: '#60a5fa', fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Candidate Profile</h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px' }}>Name:</span> <span style={{ color: '#fff', fontWeight: 600 }}>{selectedRecruiter.candidateName || '—'}</span></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px' }}>Status:</span> 
+                      <span className={`badge ${
+                        selectedRecruiter.candidateStatus === 'Placed' ? 'badge-green' : 
+                        selectedRecruiter.candidateStatus === 'Hold' ? 'badge-yellow' : 
+                        selectedRecruiter.candidateStatus === 'Rejected' ? 'badge-red' : 'badge-blue'
+                      }`}>{selectedRecruiter.candidateStatus || 'Active'}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px' }}>Targeted Profile:</span> <span className={`tag ${selectedRecruiter.targetedProfile === 'Yes' ? 'tag-green' : 'tag-red'}`}>{selectedRecruiter.targetedProfile || 'No'}</span></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px' }}>Entry Date:</span> <span style={{ color: 'rgba(255,255,255,0.8)' }}>{selectedRecruiter.date ? new Date(selectedRecruiter.date).toLocaleDateString('en-IN') : '—'}</span></div>
+                  </div>
+                </div>
+
+                <div style={{ background: 'rgba(255, 255, 255, 0.02)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                  <h4 style={{ margin: '0 0 12px 0', color: '#60a5fa', fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Operations & Ownership</h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px' }}>Team Lead (SR Name):</span> <span className="tag" style={{ color: '#fff' }}>{selectedRecruiter.srName || '—'}</span></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px' }}>Recruiter Name:</span> <span style={{ color: '#fff', fontWeight: 600 }}>{selectedRecruiter.recruiterName || '—'}</span></div>
+                    {selectedRecruiter.highlightColor && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px' }}>Highlight Color:</span> 
+                        <span style={{ 
+                          display: 'inline-block', 
+                          width: '12px', 
+                          height: '12px', 
+                          borderRadius: '50%', 
+                          backgroundColor: selectedRecruiter.highlightColor === 'red' ? '#ef4444' : selectedRecruiter.highlightColor === 'green' ? '#22c55e' : selectedRecruiter.highlightColor === 'yellow' ? '#eab308' : '#3b82f6' 
+                        }} />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 2: Applications & Interview details */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                <div style={{ background: 'rgba(255, 255, 255, 0.02)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                  <h4 style={{ margin: '0 0 12px 0', color: '#60a5fa', fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Application Submissions</h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px' }}>Long Apps:</span> <span style={{ color: '#fff', fontWeight: 600 }}>{selectedRecruiter.longApps ?? 0}</span></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px' }}>Short Apps:</span> <span style={{ color: '#fff', fontWeight: 600 }}>{selectedRecruiter.shortApps ?? 0}</span></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '8px', marginTop: '4px' }}><span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px', fontWeight: 'bold' }}>Total Apps:</span> <span style={{ color: '#3b82f6', fontWeight: 'bold', fontSize: '15px' }}>{selectedRecruiter.totalApps ?? 0}</span></div>
+                  </div>
+                </div>
+
+                <div style={{ background: 'rgba(255, 255, 255, 0.02)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                  <h4 style={{ margin: '0 0 12px 0', color: '#60a5fa', fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Interview Logs</h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px' }}>Interview Count:</span> <span style={{ color: '#fff', fontWeight: 600 }}>{selectedRecruiter.interviewCount ?? 0}</span></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px' }}>Interview Status:</span> <span style={{ color: '#fff' }}>{selectedRecruiter.interviewStatus || '—'}</span></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px' }}>Interview Date:</span> <span style={{ color: 'rgba(255,255,255,0.8)' }}>{selectedRecruiter.interviewDate ? new Date(selectedRecruiter.interviewDate).toLocaleDateString('en-IN') : '—'}</span></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 3: GChat and Compliance */}
+              <div style={{ background: 'rgba(255, 255, 255, 0.02)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                <h4 style={{ margin: '0 0 12px 0', color: '#60a5fa', fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>GChat & Compliance Touchpoints</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px' }}>GChat Connected:</span> <span style={{ color: '#fff' }}>{selectedRecruiter.gchat || '—'}</span></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px' }}>GChat Follow Up:</span> <span style={{ color: '#fff' }}>{selectedRecruiter.gchatFollowUp || '—'}</span></div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px' }}>1st Call Done:</span> <span className={`tag ${selectedRecruiter.firstCallDone === 'Yes' ? 'tag-green' : 'tag-red'}`}>{selectedRecruiter.firstCallDone || 'No'}</span></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px' }}>2nd Follow-up Mode:</span> <span style={{ color: '#fff' }}>{selectedRecruiter.secondFollowUp || '—'}</span></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 4: Feedbacks and Remarks */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                <div style={{ background: 'rgba(255, 255, 255, 0.02)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                  <h4 style={{ margin: '0 0 8px 0', color: '#60a5fa', fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Follow-up Feedbacks & Notes</h4>
+                  <p style={{ margin: 0, color: 'rgba(255,255,255,0.85)', fontSize: '13px', lineHeight: 1.5, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
+                    {selectedRecruiter.followUpNotes || 'No notes entered for this candidate.'}
+                  </p>
+                </div>
+
+                <div style={{ background: 'rgba(255, 255, 255, 0.02)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                  <h4 style={{ margin: '0 0 8px 0', color: '#60a5fa', fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Remarks</h4>
+                  <p style={{ margin: 0, color: 'rgba(255,255,255,0.85)', fontSize: '13px', lineHeight: 1.5, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
+                    {selectedRecruiter.remarks || 'No remarks entered.'}
+                  </p>
+                </div>
+              </div>
+
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 24, borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '16px' }}>
+              <button className="btn btn-outline" onClick={() => { setViewModalOpen(false); setSelectedRecruiter(null); }}>Close Inspection</button>
+            </div>
           </motion.div>
         </div>
       )}

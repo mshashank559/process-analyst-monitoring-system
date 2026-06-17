@@ -3,8 +3,9 @@ import Sidebar from './components/Sidebar.tsx'
 import Header from './components/Header.tsx'
 import Dashboard from './pages/Dashboard.tsx'
 import RecruiterMonitoring from './pages/RecruiterMonitoring.tsx'
+import CandidateCredentials from './pages/CandidateCredentials.tsx'
 
-export type Page = 'dashboard' | 'recruiters'
+export type Page = 'dashboard' | 'recruiters' | 'credentials'
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>('dashboard')
@@ -13,6 +14,7 @@ export default function App() {
     switch (currentPage) {
       case 'dashboard':    return <Dashboard />
       case 'recruiters':   return <RecruiterMonitoring />
+      case 'credentials':  return <CandidateCredentials />
       default:             return <Dashboard />
     }
   }

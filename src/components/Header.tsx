@@ -5,6 +5,7 @@ import type { Page } from '../App'
 const PAGE_TITLES: Record<Page, string> = {
   dashboard:   'Marketing Command Center',
   recruiters:  'Recruiter Monitoring',
+  credentials: 'Candidate Credentials',
 }
 
 const now = new Date()
