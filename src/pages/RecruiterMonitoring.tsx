@@ -138,13 +138,6 @@ export default function RecruiterMonitoring() {
   const paginatedData = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize)
   const totalPages = Math.ceil(filtered.length / pageSize) || 1
 
-  // Auto-calculate Total Apps in form
-  useEffect(() => {
-    const long = parseInt(form.longApps) || 0
-    const short = parseInt(form.shortApps) || 0
-    setForm(prev => ({ ...prev, totalApps: String(long + short) }))
-  }, [form.longApps, form.shortApps])
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -630,13 +623,19 @@ export default function RecruiterMonitoring() {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Total Apps (Auto-Calculated)</label>
+                  <label>Total Apps</label>
                   <input
                     type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     className="form-control"
-                    readOnly
                     value={form.totalApps}
-                    style={{ backgroundColor: 'rgba(255,255,255,0.03)', cursor: 'not-allowed' }}
+                    onChange={e => {
+                      let val = e.target.value.replace(/\D/g, '')
+                      if (val.length > 1 && val.startsWith('0')) val = val.replace(/^0+/, '')
+                      setForm({ ...form, totalApps: val })
+                    }}
+                    placeholder="0"
                   />
                 </div>
               </div>
