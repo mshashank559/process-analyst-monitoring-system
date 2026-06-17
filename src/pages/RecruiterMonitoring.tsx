@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Search, Plus, X, Download, Eye, Edit } from 'lucide-react'
+import { Search, Plus, X, Download, Eye, Edit, Trash2 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { generateRecruiterLandscapePDF } from '../utils/recruiterPdfExporter'
 import type { RecruiterPDFData } from '../utils/recruiterPdfExporter'
@@ -134,6 +134,19 @@ export default function RecruiterMonitoring() {
       remarks: item.remarks || ''
     })
     setShowModal(true)
+  }
+
+  const handleDeleteClick = (id: string) => {
+    if (window.confirm("Are you sure you want to delete this daily spreadsheet entry?")) {
+      fetch(`/api/recruiters/${id}`, {
+        method: 'DELETE'
+      })
+        .then(res => res.json())
+        .then(() => {
+          fetchRecruiters()
+        })
+        .catch(err => console.error(err))
+    }
   }
   
   const [form, setForm] = useState({
@@ -453,6 +466,14 @@ export default function RecruiterMonitoring() {
                           style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#fbbf24', display: 'inline-flex', padding: 4 }}
                         >
                           <Edit size={15} />
+                        </button>
+                        <button
+                          className="icon-btn"
+                          onClick={() => handleDeleteClick(r._id)}
+                          title="Delete Entry"
+                          style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#ef4444', display: 'inline-flex', padding: 4 }}
+                        >
+                          <Trash2 size={15} />
                         </button>
                         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                           {['red', 'green', 'yellow', 'blue'].map(color => (

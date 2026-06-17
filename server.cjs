@@ -338,6 +338,13 @@ app.patch('/api/recruiters/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+app.delete('/api/recruiters/:id', async (req, res) => {
+  try {
+    await Recruiter.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // Candidates
 app.get('/api/candidates', async (req, res) => {
   try { const data = await Candidate.find({ name: { $nin: [/john doe/i, /ravi kumar/i] } }).sort({ createdAt: -1 }); res.json(data); }
