@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Search, Plus, X, Download, Eye } from 'lucide-react'
+import { Search, Plus, X, Download, Eye, Edit } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { generateRecruiterLandscapePDF } from '../utils/recruiterPdfExporter'
 import type { RecruiterPDFData } from '../utils/recruiterPdfExporter'
@@ -55,6 +55,7 @@ export default function RecruiterMonitoring() {
   const [endDate, setEndDate] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [viewModalOpen, setViewModalOpen] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [selectedRecruiter, setSelectedRecruiter] = useState<Recruiter | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const pageSize = 50
@@ -83,6 +84,56 @@ export default function RecruiterMonitoring() {
         fetchRecruiters()
       })
       .catch(err => console.error(err))
+  }
+
+  const closeFormModal = () => {
+    setShowModal(false)
+    setEditingId(null)
+    setForm({
+      date: new Date().toISOString().split('T')[0],
+      srName: 'SR Shilp',
+      recruiterName: '',
+      candidateName: '',
+      candidateStatus: 'Active',
+      longApps: '',
+      shortApps: '',
+      totalApps: '',
+      interviewCount: '',
+      interviewStatus: '',
+      interviewDate: '',
+      gchat: 'Yes',
+      gchatFollowUp: '',
+      firstCallDone: 'Yes',
+      secondFollowUp: 'Call',
+      followUpNotes: '',
+      targetedProfile: 'Yes',
+      remarks: ''
+    })
+  }
+
+  const handleEditClick = (item: any) => {
+    setEditingId(item._id)
+    setForm({
+      date: item.date ? new Date(item.date).toISOString().split('T')[0] : '',
+      srName: item.srName || 'SR Shilp',
+      recruiterName: item.recruiterName || '',
+      candidateName: item.candidateName || '',
+      candidateStatus: item.candidateStatus || 'Active',
+      longApps: String(item.longApps ?? ''),
+      shortApps: String(item.shortApps ?? ''),
+      totalApps: String(item.totalApps ?? ''),
+      interviewCount: String(item.interviewCount ?? ''),
+      interviewStatus: item.interviewStatus || '',
+      interviewDate: item.interviewDate ? new Date(item.interviewDate).toISOString().split('T')[0] : '',
+      gchat: item.gchat || 'Yes',
+      gchatFollowUp: item.gchatFollowUp || '',
+      firstCallDone: item.firstCallDone || 'Yes',
+      secondFollowUp: item.secondFollowUp || 'Call',
+      followUpNotes: item.followUpNotes || '',
+      targetedProfile: item.targetedProfile || 'Yes',
+      remarks: item.remarks || ''
+    })
+    setShowModal(true)
   }
   
   const [form, setForm] = useState({
@@ -151,35 +202,19 @@ export default function RecruiterMonitoring() {
       interviewDate: form.interviewDate ? new Date(form.interviewDate) : null
     }
 
-    fetch('/api/recruiters', {
-      method: 'POST',
+    const isEdit = !!editingId
+    const url = isEdit ? `/api/recruiters/${editingId}` : '/api/recruiters'
+    const method = isEdit ? 'PATCH' : 'POST'
+
+    fetch(url, {
+      method: method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     })
       .then(r => r.json())
       .then(() => {
         fetchRecruiters()
-        setShowModal(false)
-        setForm({
-          date: new Date().toISOString().split('T')[0],
-          srName: 'SR Shilp',
-          recruiterName: '',
-          candidateName: '',
-          candidateStatus: 'Active',
-          longApps: '',
-          shortApps: '',
-          totalApps: '',
-          interviewCount: '',
-          interviewStatus: '',
-          interviewDate: '',
-          gchat: 'Yes',
-          gchatFollowUp: '',
-          firstCallDone: 'Yes',
-          secondFollowUp: 'Call',
-          followUpNotes: '',
-          targetedProfile: 'Yes',
-          remarks: ''
-        })
+        closeFormModal()
       })
       .catch(err => console.error(err))
   }
@@ -297,7 +332,7 @@ export default function RecruiterMonitoring() {
             <button className="btn btn-outline" onClick={exportToPDF} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               <Download size={14} /> PDF
             </button>
-            <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+            <button className="btn btn-primary" onClick={() => { closeFormModal(); setShowModal(true); }}>
               <Plus size={15} /> Add Daily Entry
             </button>
           </div>
@@ -411,6 +446,14 @@ export default function RecruiterMonitoring() {
                         >
                           <Eye size={15} />
                         </button>
+                        <button
+                          className="icon-btn"
+                          onClick={() => handleEditClick(r)}
+                          title="Edit Details"
+                          style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#fbbf24', display: 'inline-flex', padding: 4 }}
+                        >
+                          <Edit size={15} />
+                        </button>
                         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                           {['red', 'green', 'yellow', 'blue'].map(color => (
                             <button
@@ -520,7 +563,7 @@ export default function RecruiterMonitoring() {
       </div>
 
       {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+        <div className="modal-overlay" onClick={closeFormModal}>
           <motion.div
             className="modal"
             initial={{ scale: 0.9, opacity: 0 }}
@@ -529,8 +572,8 @@ export default function RecruiterMonitoring() {
             style={{ maxWidth: 800 }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h3>Add Daily Spreadsheet Entry</h3>
-              <button className="icon-btn" onClick={() => setShowModal(false)}><X size={16} /></button>
+              <h3>{editingId ? 'Edit Daily Entry' : 'Add Daily Spreadsheet Entry'}</h3>
+              <button className="icon-btn" onClick={closeFormModal}><X size={16} /></button>
             </div>
             <form onSubmit={handleSubmit}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
@@ -756,8 +799,8 @@ export default function RecruiterMonitoring() {
               </div>
 
               <div className="modal-actions">
-                <button type="button" className="btn btn-outline" onClick={() => setShowModal(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary">Save Entry</button>
+                <button type="button" className="btn btn-outline" onClick={closeFormModal}>Cancel</button>
+                <button type="submit" className="btn btn-primary">{editingId ? 'Update Entry' : 'Save Entry'}</button>
               </div>
             </form>
           </motion.div>
