@@ -22,7 +22,7 @@ export interface RecruiterPDFData {
   highlightColor?: string
 }
 
-export function generateRecruiterLandscapePDF(data: RecruiterPDFData[], dateRange: string) {
+export function generateRecruiterLandscapePDF(data: RecruiterPDFData[], dateRange: string, filtersApplied?: string) {
   // A4 Landscape: 297mm x 210mm
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
   const W = 297
@@ -56,6 +56,13 @@ export function generateRecruiterLandscapePDF(data: RecruiterPDFData[], dateRang
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(180, 185, 255)
     doc.text('Recruiter Daily Monitoring Report', 10, 17)
+
+    if (filtersApplied) {
+      doc.setFontSize(6)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(150, 155, 225)
+      doc.text(`Active Filters: ${filtersApplied}`, 10, 21)
+    }
 
     // Date range badge
     doc.setFillColor(30, 34, 208)
@@ -171,7 +178,53 @@ export function generateRecruiterLandscapePDF(data: RecruiterPDFData[], dateRang
 
   // Draw Page 1
   drawHeader(1)
-  y = 32
+
+  // Calculate KPIs
+  const totalEntries = data.length
+  const totalApps = data.reduce((sum, item) => sum + (item.totalApps || 0), 0)
+  const totalInterviews = data.reduce((sum, item) => sum + (item.interviewCount || 0), 0)
+  const firstCalls = data.filter(item => item.firstCallDone?.toLowerCase() === 'yes').length
+  const targeted = data.filter(item => item.targetedProfile?.toLowerCase() === 'yes').length
+
+  // Draw KPI Block on Page 1
+  const kpis = [
+    { label: 'TOTAL ENTRIES', val: totalEntries },
+    { label: 'TOTAL SUBMISSIONS', val: totalApps },
+    { label: 'TOTAL INTERVIEWS', val: totalInterviews },
+    { label: '1ST CALLS DONE', val: firstCalls },
+    { label: 'TARGETED PROFILES', val: targeted }
+  ]
+
+  let kx = 10
+  const kw = 52
+  const kh = 15
+  const ky = 29
+  const kgap = 4.25
+
+  kpis.forEach(k => {
+    // Card background
+    doc.setFillColor(243, 244, 255)
+    doc.roundedRect(kx, ky, kw, kh, 1.5, 1.5, 'F')
+    doc.setDrawColor(215, 218, 245)
+    doc.setLineWidth(0.2)
+    doc.roundedRect(kx, ky, kw, kh, 1.5, 1.5, 'S')
+
+    // Label
+    doc.setTextColor(110, 115, 140)
+    doc.setFontSize(6)
+    doc.setFont('helvetica', 'bold')
+    doc.text(k.label, kx + 4, ky + 5)
+
+    // Value
+    doc.setTextColor(7, 0, 77)
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'bold')
+    doc.text(String(k.val), kx + 4, ky + 11.5)
+
+    kx += kw + kgap
+  })
+
+  y = 48
   tableHeader()
 
   if (data.length === 0) {

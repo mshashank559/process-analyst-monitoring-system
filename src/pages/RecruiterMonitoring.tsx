@@ -49,6 +49,7 @@ export default function RecruiterMonitoring() {
   const [data, setData] = useState<Recruiter[]>([])
   const [search, setSearch] = useState('')
   const [filterSR, setFilterSR] = useState('')
+  const [filterRecruiter, setFilterRecruiter] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
@@ -57,6 +58,8 @@ export default function RecruiterMonitoring() {
   const [selectedRecruiter, setSelectedRecruiter] = useState<Recruiter | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const pageSize = 50
+
+  const recruiterOptions = Array.from(new Set(data.map(r => r.recruiterName).filter(Boolean))).sort()
 
   const getRowBgColor = (color?: string) => {
     if (!color) return 'transparent';
@@ -119,7 +122,7 @@ export default function RecruiterMonitoring() {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [search, filterSR, filterStatus, startDate, endDate])
+  }, [search, filterSR, filterRecruiter, filterStatus, startDate, endDate])
 
   const filtered = data.filter(r => {
     const q = search.toLowerCase()
@@ -127,8 +130,9 @@ export default function RecruiterMonitoring() {
       (r.recruiterName && r.recruiterName.toLowerCase().includes(q)) || 
       (r.candidateName && r.candidateName.toLowerCase().includes(q))
     const matchSR = !filterSR || r.srName === filterSR
+    const matchRecruiter = !filterRecruiter || r.recruiterName === filterRecruiter
     const matchS = !filterStatus || r.candidateStatus === filterStatus
-    return matchQ && matchSR && matchS
+    return matchQ && matchSR && matchRecruiter && matchS
   })
 
   const paginatedData = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize)
@@ -211,6 +215,14 @@ export default function RecruiterMonitoring() {
       "Highlight Color": item.highlightColor || 'None'
     }))
     const ws = XLSX.utils.json_to_sheet(mappedData)
+    // Add Auto-Filters to Excel Sheet
+    const range = XLSX.utils.decode_range(ws['!ref'] || "A1:S1")
+    ws['!autofilter'] = {
+      ref: XLSX.utils.encode_range({
+        s: { c: 0, r: 0 },
+        e: { c: range.e.c, r: 0 }
+      })
+    }
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, "Recruiters Report")
     XLSX.writeFile(wb, `Recruiter_Report_${new Date().toISOString().split('T')[0]}.xlsx`)
@@ -264,7 +276,14 @@ export default function RecruiterMonitoring() {
     const dateRangeStr = startDate && endDate 
       ? `From ${new Date(startDate).toLocaleDateString('en-IN')} To ${new Date(endDate).toLocaleDateString('en-IN')}`
       : `All Records (Generated: ${new Date().toLocaleDateString('en-IN')})`
-    generateRecruiterLandscapePDF(filtered as RecruiterPDFData[], dateRangeStr)
+
+    const filtersApplied = [
+      filterSR ? `SR: ${filterSR}` : '',
+      filterRecruiter ? `Recruiter: ${filterRecruiter}` : '',
+      filterStatus ? `Status: ${filterStatus}` : '',
+    ].filter(Boolean).join(' | ') || 'All Records'
+
+    generateRecruiterLandscapePDF(filtered as RecruiterPDFData[], dateRangeStr, filtersApplied)
   }
 
   return (
@@ -304,6 +323,11 @@ export default function RecruiterMonitoring() {
             {SR_OPTIONS.map(sr => <option key={sr} value={sr}>{sr}</option>)}
           </select>
 
+          <select className="filter-input" value={filterRecruiter} onChange={e => setFilterRecruiter(e.target.value)}>
+            <option value="">All Recruiters</option>
+            {recruiterOptions.map(rec => <option key={rec} value={rec}>{rec}</option>)}
+          </select>
+
           <select className="filter-input" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
             <option value="">All Statuses</option>
             {STATUS_OPTIONS.map(st => <option key={st} value={st}>{st}</option>)}
@@ -319,8 +343,8 @@ export default function RecruiterMonitoring() {
             <input type="date" className="filter-input" value={endDate} onChange={e => setEndDate(e.target.value)} style={{ padding: '6px 10px' }} />
           </div>
 
-          {(search || filterSR || filterStatus || startDate || endDate) && (
-            <button className="btn btn-outline btn-sm" onClick={() => { setSearch(''); setFilterSR(''); setFilterStatus(''); setStartDate(''); setEndDate(''); }}>Clear</button>
+          {(search || filterSR || filterRecruiter || filterStatus || startDate || endDate) && (
+            <button className="btn btn-outline btn-sm" onClick={() => { setSearch(''); setFilterSR(''); setFilterRecruiter(''); setFilterStatus(''); setStartDate(''); setEndDate(''); }}>Clear</button>
           )}
         </div>
 
