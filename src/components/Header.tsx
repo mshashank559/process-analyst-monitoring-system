@@ -4,17 +4,7 @@ import type { Page } from '../App'
 
 const PAGE_TITLES: Record<Page, string> = {
   dashboard:   'Marketing Command Center',
-  tasks:       'Daily Tasks',
-  updates:     'Daily Updates',
   recruiters:  'Recruiter Monitoring',
-  candidates:  'Candidate Monitoring',
-  performance: 'Performance Intel',
-  reports:     'Daily Reporting',
-  issues:      'Issue Tracker',
-  history:     'Historical Records',
-  audit:       'Audit Logs',
-  settings:    'Settings',
-  process_monitoring: 'Process Analyst Monitoring',
 }
 
 const now = new Date()
@@ -40,7 +30,7 @@ export default function Header({ currentPage }: { currentPage: Page }) {
         .then(r => r.json())
         .then(d => {
           if (d && typeof d === 'object') {
-            const count = (d.openIssues || 0) + (d.warningCandidates || 0)
+            const count = d.activeCandidates || 0
             setNotifCount(count)
           }
         })

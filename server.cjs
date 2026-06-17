@@ -44,18 +44,24 @@ connectMongo();
 
 // ─── Schemas ───────────────────────────────────────────────────────
 const recruiterSchema = new mongoose.Schema({
-  name: String,
-  teamLead: String,
-  candidate: String,
-  target: Number,
-  actual: Number,
-  longApps: Number,
-  shortApps: Number,
-  status: { type: String, enum: ['achieved', 'below_target', 'missed'] },
-  gchatConnected: { type: Boolean, default: false },
-  gchatName: String,
-  monthlyTarget: { type: Number, default: 0 },
-  date: { type: Date, default: Date.now }
+  date: { type: Date, default: Date.now },
+  srName: String,
+  recruiterName: String,
+  candidateName: String,
+  candidateStatus: String,
+  longApps: { type: Number, default: 0 },
+  shortApps: { type: Number, default: 0 },
+  totalApps: { type: Number, default: 0 },
+  interviewCount: { type: Number, default: 0 },
+  interviewStatus: String,
+  interviewDate: Date,
+  gchat: String,
+  gchatFollowUp: String,
+  firstCallDone: String,
+  secondFollowUp: String,
+  followUpNotes: String,
+  targetedProfile: String,
+  remarks: String
 }, { timestamps: true });
 
 const candidateSchema = new mongoose.Schema({
@@ -254,22 +260,26 @@ const EscalationFlag  = mongoose.model('EscalationFlag', escalationFlagSchema);
 // Dashboard stats
 app.get('/api/dashboard/stats', async (req, res) => {
   try {
-    const [tasks, recruiters, candidates, reports, issues] = await Promise.all([
-      Task.find(),
-      Recruiter.find({ name: { $nin: [/ravi kumar/i, /john doe/i] } }),
-      Candidate.find({ name: { $nin: [/john doe/i, /ravi kumar/i] } }),
-      Report.find({ recruiter: { $nin: [/ravi kumar/i, /john doe/i] } }),
-      Issue.find(),
-    ]);
+    const recruiters = await Recruiter.find({ recruiterName: { $nin: [/ravi kumar/i, /john doe/i] } });
+    
+    const totalApps = recruiters.reduce((sum, r) => sum + (r.totalApps || 0), 0);
+    const totalInterviews = recruiters.reduce((sum, r) => sum + (r.interviewCount || 0), 0);
+    const activeCandidates = recruiters.filter(r => r.candidateStatus && r.candidateStatus.toLowerCase() === 'active').length;
+    const targetedProfiles = recruiters.filter(r => r.targetedProfile && (r.targetedProfile.toLowerCase() === 'yes' || r.targetedProfile.toLowerCase() === 'y')).length;
+    const gchatConnected = recruiters.filter(r => r.gchat && (r.gchat.toLowerCase() === 'yes' || r.gchat.toLowerCase() === 'y')).length;
+    const firstCallsDone = recruiters.filter(r => r.firstCallDone && (r.firstCallDone.toLowerCase() === 'yes' || r.firstCallDone.toLowerCase() === 'y')).length;
+    const activeRecruiters = new Set(recruiters.map(r => r.recruiterName).filter(Boolean)).size;
+    const totalEntries = recruiters.length;
+
     res.json({
-      todaysTasks: tasks.length,
-      pendingTasks: tasks.filter(t => t.status === 'pending').length,
-      completedTasks: tasks.filter(t => t.status === 'completed').length,
-      recruitersMonitored: recruiters.length,
-      candidatesMonitored: candidates.length,
-      pendingReports: reports.filter(r => r.status === 'pending').length,
-      openIssues: issues.filter(i => i.status === 'open' || i.status === 'under_review').length,
-      warningCandidates: candidates.filter(c => c.warningStatus).length,
+      totalApps,
+      totalInterviews,
+      activeCandidates,
+      targetedProfiles,
+      gchatConnected,
+      firstCallsDone,
+      activeRecruiters,
+      totalEntries
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -277,22 +287,44 @@ app.get('/api/dashboard/stats', async (req, res) => {
 // Recruiters
 app.get('/api/recruiters', async (req, res) => {
   try {
-    const { search, teamLead, status } = req.query;
-    let query = { name: { $nin: [/ravi kumar/i, /john doe/i] } };
-    if (search) query.$or = [{ name: /search/i }, { candidate: /search/i }];
-    if (teamLead) query.teamLead = teamLead;
-    if (status) query.status = status;
-    const data = await Recruiter.find(query).sort({ createdAt: -1 });
+    const { search, teamLead, status, startDate, endDate } = req.query;
+    let query = { recruiterName: { $nin: [/ravi kumar/i, /john doe/i] } };
+    
+    if (search) {
+      query.$or = [
+        { recruiterName: { $regex: search, $options: 'i' } },
+        { candidateName: { $regex: search, $options: 'i' } }
+      ];
+    }
+    if (teamLead) {
+      query.srName = teamLead;
+    }
+    if (status) {
+      query.candidateStatus = status;
+    }
+    if (startDate || endDate) {
+      query.date = {};
+      if (startDate) query.date.$gte = new Date(startDate);
+      if (endDate) query.date.$lte = new Date(new Date(endDate).setHours(23, 59, 59, 999));
+    }
+    
+    const data = await Recruiter.find(query).sort({ date: -1, createdAt: -1 });
     res.json(data);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
+
 app.post('/api/recruiters', async (req, res) => {
-  try { const doc = await Recruiter.create(req.body); res.json(doc); }
-  catch (err) { res.status(500).json({ error: err.message }); }
+  try {
+    const doc = await Recruiter.create(req.body);
+    res.json(doc);
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
+
 app.patch('/api/recruiters/:id', async (req, res) => {
-  try { const doc = await Recruiter.findByIdAndUpdate(req.params.id, req.body, { new: true }); res.json(doc); }
-  catch (err) { res.status(500).json({ error: err.message }); }
+  try {
+    const doc = await Recruiter.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(doc);
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // Candidates
@@ -379,13 +411,13 @@ app.post('/api/updates', async (req, res) => {
 // Analytics
 app.get('/api/analytics', async (req, res) => {
   try {
-    const recruiters = await Recruiter.find({ name: { $nin: [/ravi kumar/i, /john doe/i] } });
+    const recruiters = await Recruiter.find({ recruiterName: { $nin: [/ravi kumar/i, /john doe/i] } });
     const performance = recruiters.map(r => ({
-      name: r.name.split(' ')[0],
-      target: r.target,
-      actual: r.actual,
-      longApps: r.longApps,
-      shortApps: r.shortApps,
+      name: r.recruiterName ? r.recruiterName.split(' ')[0] : '—',
+      totalApps: r.totalApps || 0,
+      longApps: r.longApps || 0,
+      shortApps: r.shortApps || 0,
+      interviewCount: r.interviewCount || 0,
     }));
     res.json({ performance });
   } catch (err) { res.status(500).json({ error: err.message }); }

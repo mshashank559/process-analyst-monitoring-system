@@ -1,23 +1,10 @@
 import { motion } from 'framer-motion'
-import {
-  LayoutDashboard, CheckSquare, FileText, Users, UserCheck,
-  ClipboardList, AlertCircle, Archive, ScrollText, Settings, LogOut, BarChart2
-} from 'lucide-react'
+import { LayoutDashboard, Users, LogOut } from 'lucide-react'
 import type { Page } from '../App'
 
 const NAV = [
   { id: 'dashboard',   label: 'Dashboard',          icon: LayoutDashboard },
-  { id: 'process_monitoring', label: 'Process Analyst Monitoring', icon: ClipboardList },
-  { id: 'tasks',       label: 'Daily Tasks',         icon: CheckSquare },
-  { id: 'updates',     label: 'Daily Updates',       icon: FileText },
   { id: 'recruiters',  label: 'Recruiter Monitoring',icon: Users },
-  { id: 'candidates',  label: 'Candidate Monitoring',icon: UserCheck },
-  { id: 'performance', label: 'Performance Intel',   icon: BarChart2 },
-  { id: 'reports',     label: 'Daily Reporting',     icon: ClipboardList },
-  { id: 'issues',      label: 'Issue Tracker',       icon: AlertCircle },
-  { id: 'history',     label: 'Historical Records',  icon: Archive },
-  { id: 'audit',       label: 'Audit Logs',          icon: ScrollText },
-  { id: 'settings',    label: 'Settings',            icon: Settings },
 ] as const
 
 interface Props { currentPage: Page; onNavigate: (p: Page) => void }

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   CheckSquare, Clock, CheckCircle, Users, UserCheck,
-  FileText, AlertCircle, AlertTriangle
+  FileText, CheckCircle2
 } from 'lucide-react'
 import { useAnimatedCounter } from '../hooks/useAnimatedCounter'
 import {
@@ -11,20 +11,25 @@ import {
 } from 'recharts'
 
 interface Stats {
-  todaysTasks: number; pendingTasks: number; completedTasks: number;
-  recruitersMonitored: number; candidatesMonitored: number;
-  pendingReports: number; openIssues: number; warningCandidates: number;
+  totalApps: number
+  totalInterviews: number
+  activeCandidates: number
+  targetedProfiles: number
+  gchatConnected: number
+  firstCallsDone: number
+  activeRecruiters: number
+  totalEntries: number
 }
 
 const CARDS = [
-  { key: 'todaysTasks',        label: "Today's Tasks",       icon: CheckSquare,  color: '#1E22D0' },
-  { key: 'pendingTasks',       label: 'Pending Tasks',        icon: Clock,        color: '#eab308' },
-  { key: 'completedTasks',     label: 'Completed Tasks',      icon: CheckCircle,  color: '#22c55e' },
-  { key: 'recruitersMonitored',label: 'Recruiters Monitored', icon: Users,        color: '#06b6d4' },
-  { key: 'candidatesMonitored',label: 'Candidates Monitored', icon: UserCheck,    color: '#8b5cf6' },
-  { key: 'pendingReports',     label: 'Pending Reports',      icon: FileText,     color: '#f97316' },
-  { key: 'openIssues',         label: 'Open Issues',          icon: AlertCircle,  color: '#ef4444' },
-  { key: 'warningCandidates',  label: 'Warning Candidates',   icon: AlertTriangle,color: '#f59e0b' },
+  { key: 'totalApps',        label: 'Total Applications',   icon: FileText,     color: '#1E22D0' },
+  { key: 'totalInterviews',   label: 'Total Interviews',     icon: Clock,        color: '#eab308' },
+  { key: 'activeCandidates',  label: 'Active Candidates',    icon: UserCheck,    color: '#22c55e' },
+  { key: 'targetedProfiles',  label: 'Targeted Profiles',    icon: CheckSquare,  color: '#8b5cf6' },
+  { key: 'gchatConnected',    label: 'GChat Connected',      icon: Clock,        color: '#06b6d4' },
+  { key: 'firstCallsDone',    label: '1st Calls Done',       icon: CheckCircle,  color: '#f97316' },
+  { key: 'activeRecruiters',  label: 'Active Recruiters',    icon: Users,        color: '#ef4444' },
+  { key: 'totalEntries',      label: 'Total Logs Entered',   icon: CheckCircle2, color: '#f59e0b' },
 ] as const
 
 function StatCard({ label, icon: Icon, value, color }: { label: string; icon: any; value: number; color: string }) {
@@ -41,9 +46,14 @@ function StatCard({ label, icon: Icon, value, color }: { label: string; icon: an
 }
 
 const EMPTY_STATS: Stats = {
-  todaysTasks: 0, pendingTasks: 0, completedTasks: 0,
-  recruitersMonitored: 0, candidatesMonitored: 0,
-  pendingReports: 0, openIssues: 0, warningCandidates: 0
+  totalApps: 0,
+  totalInterviews: 0,
+  activeCandidates: 0,
+  targetedProfiles: 0,
+  gchatConnected: 0,
+  firstCallsDone: 0,
+  activeRecruiters: 0,
+  totalEntries: 0
 }
 
 const TOOLTIP_STYLE = {
@@ -61,7 +71,7 @@ const EMPTY_CHART_MSG = (
 
 export default function Dashboard() {
   const [stats, setStats]       = useState<Stats>(EMPTY_STATS)
-  const [barData, setBarData]   = useState<{ name: string; target: number; actual: number }[]>([])
+  const [barData, setBarData]   = useState<{ name: string; long: number; short: number; total: number }[]>([])
   const [areaData, setAreaData] = useState<{ name: string; apps: number }[]>([])
 
   useEffect(() => {
@@ -71,22 +81,28 @@ export default function Dashboard() {
       .then(d => { if (d && typeof d === 'object') setStats(d) })
       .catch(() => {})
 
-    // Real recruiter data for bar chart
+    // Recruiter data for bar chart
     fetch('/api/recruiters')
       .then(r => r.json())
       .then((d: any[]) => {
         if (Array.isArray(d) && d.length) {
-          setBarData(d.map(r => ({
-            name: r.name?.split(' ')[0] || '—',
-            target: r.target || 0,
-            actual: r.actual || 0,
-          })))
+          const agg: Record<string, { name: string; long: number; short: number; total: number }> = {}
+          d.forEach(r => {
+            const name = r.recruiterName || 'Unknown'
+            if (!agg[name]) {
+              agg[name] = { name: name.split(' ')[0], long: 0, short: 0, total: 0 }
+            }
+            agg[name].long += r.longApps || 0
+            agg[name].short += r.shortApps || 0
+            agg[name].total += r.totalApps || 0
+          })
+          setBarData(Object.values(agg))
         }
       })
       .catch(() => {})
 
-    // Real task data by day for area chart
-    fetch('/api/tasks')
+    // Recruiter data by weekday for area chart
+    fetch('/api/recruiters')
       .then(r => r.json())
       .then((d: any[]) => {
         if (Array.isArray(d) && d.length) {
@@ -94,9 +110,11 @@ export default function Dashboard() {
           const counts: Record<string, number> = {}
           days.forEach(day => { counts[day] = 0 })
           d.forEach(t => {
-            if (t.createdAt) {
-              const day = days[new Date(t.createdAt).getDay() === 0 ? 6 : new Date(t.createdAt).getDay() - 1]
-              counts[day] = (counts[day] || 0) + 1
+            const dateObj = t.date ? new Date(t.date) : new Date(t.createdAt)
+            if (dateObj) {
+              const dayIndex = dateObj.getDay()
+              const dayName = days[dayIndex === 0 ? 6 : dayIndex - 1]
+              counts[dayName] = (counts[dayName] || 0) + (t.totalApps || 0)
             }
           })
           setAreaData(days.map(name => ({ name, apps: counts[name] })))
@@ -114,7 +132,7 @@ export default function Dashboard() {
       <motion.div className="hero-section" initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }}>
         <div className="hero-greeting">{greeting}</div>
         <div className="hero-title">Welcome back, <span>Shashank</span></div>
-        <div className="hero-sub">Monitor recruiters, candidates, reports and operational activities in one place.</div>
+        <div className="hero-sub">Monitor recruiter daily logs, apps, interviews and follow-up activities in one place.</div>
         <div className="hero-badge"><span />Live · All Systems Operational</div>
       </motion.div>
 
@@ -130,7 +148,7 @@ export default function Dashboard() {
       {/* Charts */}
       <div className="charts-grid">
         <div className="chart-card">
-          <h3>📋 Tasks Created This Week</h3>
+          <h3>📈 Total Applications by Weekday</h3>
           {areaData.length === 0 ? EMPTY_CHART_MSG : (
             <ResponsiveContainer width="100%" height={200}>
               <AreaChart data={areaData}>
@@ -144,14 +162,14 @@ export default function Dashboard() {
                 <XAxis dataKey="name" stroke="rgba(255,255,255,0.3)" tick={{ fontSize: 11 }} />
                 <YAxis stroke="rgba(255,255,255,0.3)" tick={{ fontSize: 11 }} />
                 <Tooltip contentStyle={TOOLTIP_STYLE} />
-                <Area type="monotone" dataKey="apps" stroke="#1E22D0" fill="url(#ga)" strokeWidth={2} name="Tasks" />
+                <Area type="monotone" dataKey="apps" stroke="#1E22D0" fill="url(#ga)" strokeWidth={2} name="Total Applications" />
               </AreaChart>
             </ResponsiveContainer>
           )}
         </div>
 
         <div className="chart-card">
-          <h3>🎯 Target vs Actual (Recruiters)</h3>
+          <h3>🎯 Applications by Recruiter (Long vs Short)</h3>
           {barData.length === 0 ? EMPTY_CHART_MSG : (
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={barData} barGap={4}>
@@ -160,8 +178,8 @@ export default function Dashboard() {
                 <YAxis stroke="rgba(255,255,255,0.3)" tick={{ fontSize: 11 }} />
                 <Tooltip contentStyle={TOOLTIP_STYLE} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="target" fill="rgba(30,34,208,0.5)" radius={[4,4,0,0]} name="Target" />
-                <Bar dataKey="actual" fill="#1E22D0"              radius={[4,4,0,0]} name="Actual" />
+                <Bar dataKey="long" fill="rgba(30,34,208,0.5)" radius={[4,4,0,0]} name="Long Apps" />
+                <Bar dataKey="short" fill="#1E22D0"              radius={[4,4,0,0]} name="Short Apps" />
               </BarChart>
             </ResponsiveContainer>
           )}
