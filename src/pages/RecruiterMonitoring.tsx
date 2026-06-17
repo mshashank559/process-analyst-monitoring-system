@@ -851,7 +851,6 @@ export default function RecruiterMonitoring() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px' }}>GChat Connected:</span> <span style={{ color: '#fff' }}>{selectedRecruiter.gchat || '—'}</span></div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px' }}>GChat Follow Up:</span> <span style={{ color: '#fff' }}>{selectedRecruiter.gchatFollowUp || '—'}</span></div>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px' }}>1st Call Done:</span> <span className={`tag ${selectedRecruiter.firstCallDone === 'Yes' ? 'tag-green' : 'tag-red'}`}>{selectedRecruiter.firstCallDone || 'No'}</span></div>
@@ -861,11 +860,18 @@ export default function RecruiterMonitoring() {
               </div>
 
               {/* Row 4: Feedbacks and Remarks */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px' }}>
                 <div style={{ background: 'rgba(255, 255, 255, 0.02)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                  <h4 style={{ margin: '0 0 8px 0', color: '#60a5fa', fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Follow-up Feedbacks & Notes</h4>
+                  <h4 style={{ margin: '0 0 8px 0', color: '#60a5fa', fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>GChat Follow-up Notes</h4>
                   <p style={{ margin: 0, color: 'rgba(255,255,255,0.85)', fontSize: '13px', lineHeight: 1.5, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
-                    {selectedRecruiter.followUpNotes || 'No notes entered for this candidate.'}
+                    {selectedRecruiter.gchatFollowUp || 'No GChat follow-up notes entered.'}
+                  </p>
+                </div>
+
+                <div style={{ background: 'rgba(255, 255, 255, 0.02)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                  <h4 style={{ margin: '0 0 8px 0', color: '#60a5fa', fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Call Follow-up Notes</h4>
+                  <p style={{ margin: 0, color: 'rgba(255,255,255,0.85)', fontSize: '13px', lineHeight: 1.5, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
+                    {selectedRecruiter.followUpNotes || 'No call follow-up notes entered.'}
                   </p>
                 </div>
 
