@@ -55,6 +55,8 @@ export default function RecruiterMonitoring() {
   const [showModal, setShowModal] = useState(false)
   const [viewModalOpen, setViewModalOpen] = useState(false)
   const [selectedRecruiter, setSelectedRecruiter] = useState<Recruiter | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const pageSize = 50
 
   const getRowBgColor = (color?: string) => {
     if (!color) return 'transparent';
@@ -115,6 +117,10 @@ export default function RecruiterMonitoring() {
     fetchRecruiters()
   }, [startDate, endDate])
 
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search, filterSR, filterStatus, startDate, endDate])
+
   const filtered = data.filter(r => {
     const q = search.toLowerCase()
     const matchQ = !q || 
@@ -124,6 +130,9 @@ export default function RecruiterMonitoring() {
     const matchS = !filterStatus || r.candidateStatus === filterStatus
     return matchQ && matchSR && matchS
   })
+
+  const paginatedData = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+  const totalPages = Math.ceil(filtered.length / pageSize) || 1
 
   // Auto-calculate Total Apps in form
   useEffect(() => {
@@ -341,7 +350,7 @@ export default function RecruiterMonitoring() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((r, i) => {
+              {paginatedData.map((r, i) => {
                 return (
                   <motion.tr key={r._id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: Math.min(i * 0.03, 0.5) }} style={{ backgroundColor: getRowBgColor(r.highlightColor) }}>
                     <td>{r.date ? new Date(r.date).toLocaleDateString('en-IN') : '—'}</td>
@@ -425,11 +434,72 @@ export default function RecruiterMonitoring() {
                 )
               })}
               {filtered.length === 0 && (
-                <tr><td colSpan={18} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 40 }}>No records found</td></tr>
+                <tr><td colSpan={19} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 40 }}>No records found</td></tr>
               )}
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '16px 24px',
+            borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+            background: 'rgba(255, 255, 255, 0.01)',
+            borderBottomLeftRadius: '12px',
+            borderBottomRightRadius: '12px',
+            flexWrap: 'wrap',
+            gap: '12px'
+          }}>
+            <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+              Showing <span style={{ color: '#fff', fontWeight: 500 }}>{((currentPage - 1) * pageSize) + 1}</span> to <span style={{ color: '#fff', fontWeight: 500 }}>{Math.min(currentPage * pageSize, filtered.length)}</span> of <span style={{ color: '#fff', fontWeight: 500 }}>{filtered.length}</span> entries
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                style={{
+                  opacity: currentPage === 1 ? 0.4 : 1,
+                  cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  background: 'rgba(255,255,255,0.02)',
+                  borderColor: 'rgba(255,255,255,0.1)'
+                }}
+              >
+                Previous
+              </button>
+              <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>
+                Page <span style={{ color: '#fff' }}>{currentPage}</span> of <span style={{ color: '#fff' }}>{totalPages}</span>
+              </span>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                style={{
+                  opacity: currentPage === totalPages ? 0.4 : 1,
+                  cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  background: 'rgba(255,255,255,0.02)',
+                  borderColor: 'rgba(255,255,255,0.1)'
+                }}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {showModal && (

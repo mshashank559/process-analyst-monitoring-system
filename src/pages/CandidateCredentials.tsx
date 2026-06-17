@@ -17,6 +17,8 @@ export default function CandidateCredentials() {
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
   const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({})
+  const [currentPage, setCurrentPage] = useState(1)
+  const pageSize = 50
 
   // Form states
   const [seniorRecruiter, setSeniorRecruiter] = useState('')
@@ -47,6 +49,13 @@ export default function CandidateCredentials() {
     }, 300)
     return () => clearTimeout(delay)
   }, [search])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search])
+
+  const paginatedCredentials = credentials.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+  const totalPages = Math.ceil(credentials.length / pageSize) || 1
 
   const togglePassword = (id: string) => {
     setVisiblePasswords(prev => ({
@@ -143,7 +152,7 @@ export default function CandidateCredentials() {
               </tr>
             </thead>
             <tbody>
-              {credentials.map((cred) => {
+              {paginatedCredentials.map((cred) => {
                 const credId = cred._id || cred.candidateName;
                 const showPass = !!visiblePasswords[credId];
                 return (
@@ -178,6 +187,69 @@ export default function CandidateCredentials() {
               })}
             </tbody>
           </table>
+        )}
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '16px 24px',
+            borderTop: '1px solid rgba(255, 255, 255, 0.05)',
+            background: 'rgba(255, 255, 255, 0.01)',
+            borderBottomLeftRadius: '12px',
+            borderBottomRightRadius: '12px',
+            flexWrap: 'wrap',
+            gap: '12px'
+          }}>
+            <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.5)' }}>
+              Showing <span style={{ color: '#fff', fontWeight: 500 }}>{((currentPage - 1) * pageSize) + 1}</span> to <span style={{ color: '#fff', fontWeight: 500 }}>{Math.min(currentPage * pageSize, credentials.length)}</span> of <span style={{ color: '#fff', fontWeight: 500 }}>{credentials.length}</span> entries
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                style={{
+                  opacity: currentPage === 1 ? 0.4 : 1,
+                  cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  background: 'rgba(255,255,255,0.02)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '6px',
+                  color: '#fff'
+                }}
+              >
+                Previous
+              </button>
+              <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>
+                Page <span style={{ color: '#fff' }}>{currentPage}</span> of <span style={{ color: '#fff' }}>{totalPages}</span>
+              </span>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                style={{
+                  opacity: currentPage === totalPages ? 0.4 : 1,
+                  cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  background: 'rgba(255,255,255,0.02)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '6px',
+                  color: '#fff'
+                }}
+              >
+                Next
+              </button>
+            </div>
+          </div>
         )}
       </div>
 
